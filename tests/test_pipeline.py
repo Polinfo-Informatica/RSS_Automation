@@ -7,8 +7,13 @@ from rss_automation.pipeline import choose_download
 def test_choose_download_uses_preference_when_both_exist() -> None:
     item = RssItem("feed", "title", "id", "mag", "tor", "raw")
 
-    assert choose_download(item, "magnet").kind == "magnet"
-    assert choose_download(item, "torrent").kind == "torrent"
+    magnet_selected = choose_download(item, "magnet")
+    torrent_selected = choose_download(item, "torrent")
+
+    assert magnet_selected is not None
+    assert torrent_selected is not None
+    assert magnet_selected.kind == "magnet"
+    assert torrent_selected.kind == "torrent"
 
 
 def test_choose_download_falls_back_to_available_value() -> None:
