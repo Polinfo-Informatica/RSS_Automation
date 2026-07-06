@@ -35,27 +35,21 @@ function Invoke-GitCommand {
         [string[]] $Arguments
     )
 
-    $processInfo = [System.Diagnostics.ProcessStartInfo]::new()
-    $processInfo.FileName = "git"
-    $processInfo.UseShellExecute = $false
-    $processInfo.RedirectStandardOutput = $true
-    $processInfo.RedirectStandardError = $true
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
 
-    foreach ($argument in $Arguments) {
-        $processInfo.ArgumentList.Add($argument)
+    try {
+        $output = & git @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+        $text = ($output | ForEach-Object { $_.ToString() } | Out-String).Trim()
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
     }
 
-    $process = [System.Diagnostics.Process]::new()
-    $process.StartInfo = $processInfo
-
-    [void] $process.Start()
-    $standardOutput = $process.StandardOutput.ReadToEnd()
-    $standardError = $process.StandardError.ReadToEnd()
-    $process.WaitForExit()
-
     return [PSCustomObject]@{
-        ExitCode = $process.ExitCode
-        Text = (($standardOutput, $standardError) -join "`n").Trim()
+        ExitCode = $exitCode
+        Text = $text
     }
 }
 
