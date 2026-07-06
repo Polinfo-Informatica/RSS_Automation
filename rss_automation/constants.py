@@ -41,7 +41,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "exclude_file": "exclude.txt",
     "processed_file": "processed.txt",
     "prefer_download_type": "magnet",
-    "match_mode": "contains",
+    "match_mode": "literal",
     "case_sensitive": False,
     "skip_duplicates": True,
     "download_timeout_seconds": 30,
