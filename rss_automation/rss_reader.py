@@ -52,23 +52,35 @@ def text_from_entry_value(value: object) -> str:
     if isinstance(value, dict):
         return " ".join(text_from_entry_value(part) for part in value.values()).strip()
 
-    if isinstance(value, list | tuple):
+    if isinstance(value, (list, tuple)):
         return " ".join(text_from_entry_value(part) for part in value).strip()
 
     return str(value).strip()
 
 
+def compact_text_parts(parts: list[object]) -> str:
+    """Compact arbitrary values into one searchable string."""
+
+    compacted: list[str] = []
+    for part in parts:
+        text = text_from_entry_value(part)
+        if text:
+            compacted.append(text)
+
+    return " ".join(compacted).strip()
+
+
 def extract_entry_description(entry: Any) -> str:
     """Extract searchable description text from common RSS fields."""
 
-    parts = [
-        getattr(entry, "summary", None),
-        getattr(entry, "description", None),
-        getattr(entry, "subtitle", None),
-        getattr(entry, "content", None),
-    ]
-
-    return " ".join(text_from_entry_value(part) for part in parts if text_from_entry_value(part)).strip()
+    return compact_text_parts(
+        [
+            getattr(entry, "summary", None),
+            getattr(entry, "description", None),
+            getattr(entry, "subtitle", None),
+            getattr(entry, "content", None),
+        ]
+    )
 
 
 def filename_from_url(value: str | None) -> str:
@@ -80,6 +92,32 @@ def filename_from_url(value: str | None) -> str:
     path = urlsplit(value).path
     name = PurePosixPath(unquote(path)).name
     return name.strip()
+
+
+def extend_link_candidates(candidates: list[object], link_obj: object) -> None:
+    """Add filename-like link metadata to a candidate list."""
+
+    if isinstance(link_obj, dict):
+        href = link_obj.get("href") or link_obj.get("url")
+        candidates.extend(
+            [
+                link_obj.get("title"),
+                link_obj.get("filename"),
+                href,
+                filename_from_url(str(href)) if href else "",
+            ]
+        )
+        return
+
+    href = getattr(link_obj, "href", None) or getattr(link_obj, "url", None)
+    candidates.extend(
+        [
+            getattr(link_obj, "title", None),
+            getattr(link_obj, "filename", None),
+            href,
+            filename_from_url(str(href)) if href else "",
+        ]
+    )
 
 
 def extract_link_filename(entry: Any, raw_link: str | None, torrent_url: str | None) -> str:
@@ -94,49 +132,12 @@ def extract_link_filename(entry: Any, raw_link: str | None, torrent_url: str | N
     ]
 
     for link_obj in getattr(entry, "links", []) or []:
-        if isinstance(link_obj, dict):
-            candidates.extend(
-                [
-                    link_obj.get("title"),
-                    link_obj.get("filename"),
-                    link_obj.get("href"),
-                    filename_from_url(str(link_obj.get("href"))) if link_obj.get("href") else "",
-                ]
-            )
-        else:
-            href = getattr(link_obj, "href", None)
-            candidates.extend(
-                [
-                    getattr(link_obj, "title", None),
-                    getattr(link_obj, "filename", None),
-                    href,
-                    filename_from_url(str(href)) if href else "",
-                ]
-            )
+        extend_link_candidates(candidates, link_obj)
 
     for enclosure in getattr(entry, "enclosures", []) or []:
-        if isinstance(enclosure, dict):
-            href = enclosure.get("href") or enclosure.get("url")
-            candidates.extend(
-                [
-                    enclosure.get("title"),
-                    enclosure.get("filename"),
-                    href,
-                    filename_from_url(str(href)) if href else "",
-                ]
-            )
-        else:
-            href = getattr(enclosure, "href", None) or getattr(enclosure, "url", None)
-            candidates.extend(
-                [
-                    getattr(enclosure, "title", None),
-                    getattr(enclosure, "filename", None),
-                    href,
-                    filename_from_url(str(href)) if href else "",
-                ]
-            )
+        extend_link_candidates(candidates, enclosure)
 
-    return " ".join(text_from_entry_value(candidate) for candidate in candidates if text_from_entry_value(candidate)).strip()
+    return compact_text_parts(candidates)
 
 
 def extract_links(entry: Any) -> tuple[str | None, str | None, str | None]:
