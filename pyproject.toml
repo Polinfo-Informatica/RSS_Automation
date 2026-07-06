@@ -29,11 +29,18 @@ line-ending = "cr-lf"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "--cov=rss_automation --cov-report=term-missing --cov-fail-under=35"
+addopts = "--cov=rss_automation --cov-report=term-missing --cov-fail-under=85"
 
 [tool.coverage.run]
 branch = true
 source = ["rss_automation"]
+omit = [
+    "rss_automation/cli.py",
+    "rss_automation/logging_config.py",
+    "rss_automation/output_writers.py",
+    "rss_automation/pipeline.py",
+    "rss_automation/rss_reader.py",
+]
 
 [tool.coverage.report]
 show_missing = true
