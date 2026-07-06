@@ -81,12 +81,13 @@ def extract_links(entry: Any) -> tuple[str | None, str | None, str | None]:
     return magnet, torrent, str(raw_link) if raw_link else None
 
 
-def parse_feed(feed_url: str, timeout: int, user_agent: str) -> list[RssItem]:
+def parse_feed(feed_url: str, timeout: int, user_agent: str, feed_name: str = "") -> list[RssItem]:
     """Download and parse one RSS feed into normalized RSS items."""
 
     headers = {"User-Agent": user_agent}
     safe_feed_url = redact_url(feed_url)
-    logging.info("Reading RSS feed: %s", safe_feed_url)
+    source_label = f" [{feed_name}]" if feed_name else ""
+    logging.info("Reading RSS feed%s: %s", source_label, safe_feed_url)
 
     response = requests.get(feed_url, timeout=timeout, headers=headers)
     response.raise_for_status()
@@ -112,6 +113,7 @@ def parse_feed(feed_url: str, timeout: int, user_agent: str) -> list[RssItem]:
                 magnet=magnet,
                 torrent_url=torrent,
                 raw_link=raw_link,
+                feed_name=feed_name,
             )
         )
 
