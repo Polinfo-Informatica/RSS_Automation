@@ -10,7 +10,7 @@
     "processed_file": "processed.txt",
 
     "prefer_download_type": "magnet",
-    "match_mode": "contains",
+    "match_mode": "literal",
     "case_sensitive": false,
     "skip_duplicates": true,
 
