@@ -187,6 +187,13 @@ def validate_settings(settings: dict[str, Any]) -> None:
         raise ValueError('settings.json: "max_log_executions" must be at least 1.')
 
 
+def write_text_if_missing(path: Path, content: str) -> None:
+    """Create a text file with starter content without overwriting user edits."""
+
+    if not path.exists():
+        path.write_text(content, encoding="utf-8")
+
+
 def setup_folders(settings: dict[str, Any]) -> dict[str, Path]:
     """Create required folders and minimal starter config files when absent."""
 
@@ -201,15 +208,14 @@ def setup_folders(settings: dict[str, Any]) -> dict[str, Path]:
     for path in paths.values():
         path.mkdir(parents=True, exist_ok=True)
 
-    rss_file = paths["config"] / str(settings["rss_file"])
-    exclude_file = paths["config"] / str(settings["exclude_file"])
-    sample_category = paths["config"] / "anime.txt"
+    starter_files = {
+        paths["config"] / str(settings.get("rss_file", "rss.txt")): "# Put one RSS feed URL per line.\n",
+        paths["config"] / str(settings.get("exclude_file", "exclude.txt")): "# Put one exclusion keyword per line.\n",
+        paths["config"] / str(settings.get("processed_file", "processed.txt")): "",
+        paths["config"] / "anime.txt": "# Put one title/pattern per line.\n# Example:\n# One Piece\n",
+    }
 
-    if not rss_file.exists():
-        rss_file.write_text("# Put one RSS feed URL per line.\n", encoding="utf-8")
-    if not exclude_file.exists():
-        exclude_file.write_text("# Put one exclusion keyword per line.\n", encoding="utf-8")
-    if not sample_category.exists():
-        sample_category.write_text("# Put one title/pattern per line.\n# Example:\n# One Piece\n", encoding="utf-8")
+    for file_path, content in starter_files.items():
+        write_text_if_missing(file_path, content)
 
     return paths
