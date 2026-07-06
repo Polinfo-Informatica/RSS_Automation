@@ -24,7 +24,7 @@ from rss_automation.models import CategoryRule, RssItem, RunStats, SelectedDownl
 from rss_automation.output_writers import download_torrent_file, save_magnet
 from rss_automation.rss_reader import parse_feed
 from rss_automation.settings import get_project_root, load_settings, resolve_settings_path, setup_folders
-from rss_automation.url_tools import redact_url
+from rss_automation.url_tools import redact_text, redact_url
 
 
 def choose_download(item: RssItem, preference: str) -> SelectedDownload | None:
@@ -94,7 +94,7 @@ def process_items(
                 saved_count += 1
                 logging.info("Saved %s: [%s] %s -> %s", selected.kind, category, item.title, saved_path)
             except Exception as exc:
-                logging.exception("Failed to save [%s] %s | %s", category, item.title, exc)
+                logging.error("Failed to save [%s] %s | %s: %s", category, item.title, type(exc).__name__, redact_text(str(exc)))
                 skipped_count += 1
 
     return RunStats(items_read=len(items), matched=matched_count, saved=saved_count, skipped=skipped_count)
@@ -142,6 +142,7 @@ def run_once(settings_path: Path) -> int:
         logging.info("Torrent output: %s", paths["torrent"])
 
         all_items: list[RssItem] = []
+        failed_feeds = 0
         for source in rss_sources:
             try:
                 all_items.extend(
@@ -153,7 +154,19 @@ def run_once(settings_path: Path) -> int:
                     )
                 )
             except Exception as exc:
-                logging.exception("Failed to read feed [%s] %s | %s", source.name, redact_url(source.url), exc)
+                failed_feeds += 1
+                logging.error(
+                    "Failed to read feed [%s] %s | %s: %s",
+                    source.name,
+                    redact_url(source.url),
+                    type(exc).__name__,
+                    redact_text(str(exc)),
+                )
+
+        if failed_feeds == len(rss_sources):
+            logging.error("All configured RSS feeds failed.")
+            exit_code = 2
+            return exit_code
 
         stats = process_items(all_items, categories, exclusions, paths, settings)
         exit_code = 0
