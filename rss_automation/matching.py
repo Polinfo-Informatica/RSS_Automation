@@ -17,17 +17,20 @@ def normalize_text(text: str, case_sensitive: bool) -> str:
     return text if case_sensitive else text.casefold()
 
 
+def text_contains_literal_phrase(text: str, phrase: str, case_sensitive: bool) -> bool:
+    """Return True when text contains the exact literal phrase, including spaces."""
+
+    phrase_cmp = normalize_text(phrase, case_sensitive)
+    if not phrase_cmp:
+        return False
+
+    return phrase_cmp in normalize_text(text, case_sensitive)
+
+
 def title_is_excluded(title: str, exclusions: Sequence[str], case_sensitive: bool) -> bool:
-    """Return True when a title contains any configured exclusion term."""
+    """Return True when a title contains any literal exclusion phrase."""
 
-    title_cmp = normalize_text(title, case_sensitive)
-
-    for exclusion in exclusions:
-        exclusion_cmp = normalize_text(exclusion, case_sensitive)
-        if exclusion_cmp and exclusion_cmp in title_cmp:
-            return True
-
-    return False
+    return any(text_contains_literal_phrase(title, exclusion, case_sensitive) for exclusion in exclusions)
 
 
 def title_matches_pattern(title: str, pattern: str, match_mode: str, case_sensitive: bool) -> bool:
@@ -35,6 +38,8 @@ def title_matches_pattern(title: str, pattern: str, match_mode: str, case_sensit
 
     if not pattern:
         return False
+
+    match_mode = match_mode.lower().strip()
 
     if match_mode == "regex":
         flags = 0 if case_sensitive else re.IGNORECASE
@@ -50,7 +55,11 @@ def title_matches_pattern(title: str, pattern: str, match_mode: str, case_sensit
     if match_mode == "exact":
         return title_cmp == pattern_cmp
 
-    return pattern_cmp in title_cmp
+    # "literal" is the default. "contains" remains as a backward-compatible alias.
+    if match_mode in {"literal", "contains"}:
+        return text_contains_literal_phrase(title, pattern, case_sensitive)
+
+    return False
 
 
 def pattern_applies_to_feed(pattern: MatchPattern, feed_name: str) -> bool:
