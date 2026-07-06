@@ -15,7 +15,7 @@ target-version = ["py314"]
 [tool.ruff]
 line-length = 120
 target-version = "py314"
-src = ["rss_automation"]
+src = ["rss_automation", "tests"]
 
 [tool.ruff.lint]
 select = [
@@ -37,3 +37,36 @@ ignore = [
 quote-style = "double"
 indent-style = "space"
 line-ending = "cr-lf"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--cov=rss_automation --cov-report=term-missing --cov-fail-under=85"
+
+[tool.coverage.run]
+branch = true
+source = ["rss_automation"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "feedparser.*",
+    "requests.*",
+]
+ignore_missing_imports = true
