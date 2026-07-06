@@ -1,9 +1,9 @@
 {
-    "root_folder": "D:\\Root\\Downloads",
-    "config_folder": "D:\\Root\\Downloads\\RSS_Config",
-    "magnet_output_folder": "D:\\Root\\Downloads\\RSS_Magnet",
-    "torrent_output_folder": "D:\\Root\\Downloads\\RSS_Torrent",
-    "log_folder": "D:\\Root\\Downloads\\Logs",
+    "root_folder": "${project_root}",
+    "config_folder": "${project_root}\\RSS_Config",
+    "magnet_output_folder": "${project_root}\\RSS_Magnet",
+    "torrent_output_folder": "${project_root}\\RSS_Torrent",
+    "log_folder": "${project_root}\\Logs",
 
     "rss_file": "rss.txt",
     "exclude_file": "exclude.txt",
