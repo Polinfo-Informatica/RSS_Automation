@@ -1,0 +1,23 @@
+{
+    "root_folder": "D:\\Root\\Downloads",
+    "config_folder": "D:\\Root\\Downloads\\RSS_Config",
+    "magnet_output_folder": "D:\\Root\\Downloads\\RSS_Magnet",
+    "torrent_output_folder": "D:\\Root\\Downloads\\RSS_Torrent",
+    "log_folder": "D:\\Root\\Downloads\\Logs",
+
+    "rss_file": "rss.txt",
+    "exclude_file": "exclude.txt",
+    "processed_file": "processed.txt",
+
+    "prefer_download_type": "magnet",
+    "match_mode": "contains",
+    "case_sensitive": false,
+    "skip_duplicates": true,
+
+    "download_timeout_seconds": 30,
+    "scan_interval_seconds": 300,
+    "request_user_agent": "RSS_Automation/0.0.1.a",
+
+    "write_magnet_format": "title_and_magnet",
+    "dry_run": false
+}
