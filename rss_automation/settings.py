@@ -58,7 +58,7 @@ def get_windows_known_folder(folder_id: UUID) -> Path:
     path_ptr = ctypes.c_wchar_p()
     result = ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(path_ptr))
 
-    if result != 0:
+    if result != 0 or path_ptr.value is None:
         raise OSError(f"SHGetKnownFolderPath failed with HRESULT {result:#x}")
 
     try:
