@@ -9,9 +9,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from rss_automation import __version__
 from rss_automation.constants import MASTER_LOG_NAME, RUN_END_MARKER, RUN_LOG_PREFIX, RUN_LOG_SUFFIX, RUN_START_MARKER
 from rss_automation.models import LogContext, RunStats
-from rss_automation import __version__
 
 
 def make_run_log_path(log_folder: Path, run_started_at: datetime) -> Path:
