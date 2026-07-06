@@ -8,12 +8,29 @@ from pathlib import Path
 
 
 @dataclass(frozen=True, slots=True)
+class FeedSource:
+    """One configured RSS feed source."""
+
+    name: str
+    url: str
+
+
+@dataclass(frozen=True, slots=True)
+class MatchPattern:
+    """One title pattern, optionally restricted to specific feed names."""
+
+    text: str
+    feed_names: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class CategoryRule:
     """A category TXT file and the match patterns loaded from it."""
 
     category: str
     source_file: Path
     patterns: tuple[str, ...]
+    match_patterns: tuple[MatchPattern, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,6 +43,7 @@ class RssItem:
     magnet: str | None
     torrent_url: str | None
     raw_link: str | None
+    feed_name: str = ""
 
 
 @dataclass(frozen=True, slots=True)
