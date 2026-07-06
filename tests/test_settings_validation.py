@@ -61,7 +61,33 @@ def test_setup_folders_creates_runtime_structure(tmp_path: Path) -> None:
     assert paths["log"].is_dir()
     assert (paths["config"] / "rss.txt").is_file()
     assert (paths["config"] / "exclude.txt").is_file()
+    assert (paths["config"] / "processed.txt").is_file()
     assert (paths["config"] / "anime.txt").is_file()
+
+
+def test_setup_folders_creates_missing_starter_files_when_processed_exists(tmp_path: Path) -> None:
+    root = tmp_path / "runtime"
+    config_folder = root / "RSS_Config"
+    config_folder.mkdir(parents=True)
+    processed_file = config_folder / "processed.txt"
+    processed_file.write_text("existing-key\n", encoding="utf-8")
+    settings = {
+        "root_folder": str(root),
+        "config_folder": str(config_folder),
+        "magnet_output_folder": str(root / "RSS_Magnet"),
+        "torrent_output_folder": str(root / "RSS_Torrent"),
+        "log_folder": str(root / "Logs"),
+        "rss_file": "rss.txt",
+        "exclude_file": "exclude.txt",
+        "processed_file": "processed.txt",
+    }
+
+    setup_folders(settings)
+
+    assert (config_folder / "rss.txt").is_file()
+    assert (config_folder / "exclude.txt").is_file()
+    assert (config_folder / "anime.txt").is_file()
+    assert processed_file.read_text(encoding="utf-8") == "existing-key\n"
 
 
 def test_load_settings_creates_default_file_when_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
