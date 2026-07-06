@@ -35,9 +35,9 @@ def resolve_path_value(value: str, project_root: Path) -> str:
         expanded = expanded.replace(token, project_root_text)
 
     # Allow normal Windows and shell environment variables as well.
-    expanded = os.path.expandvars(os.path.expanduser(expanded))
+    expanded = os.path.expandvars(expanded)
 
-    path = Path(expanded)
+    path = Path(expanded).expanduser()
     if not path.is_absolute():
         path = project_root / path
 
