@@ -44,6 +44,8 @@ class RssItem:
     torrent_url: str | None
     raw_link: str | None
     feed_name: str = ""
+    file_name: str = ""
+    description: str = ""
 
 
 @dataclass(frozen=True, slots=True)
