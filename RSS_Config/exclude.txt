@@ -1,0 +1,5 @@
+# Put one exclusion keyword per line.
+# Lines starting with # are ignored.
+# Example:
+# Batch
+# OVA
