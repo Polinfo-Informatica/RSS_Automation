@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from rss_automation.matching import matching_categories, title_is_excluded, title_matches_pattern
-from rss_automation.models import CategoryRule
+from rss_automation.models import CategoryRule, MatchPattern
 
 
 def test_contains_matching_is_case_insensitive_by_default() -> None:
@@ -35,3 +35,22 @@ def test_matching_categories_returns_category_and_pattern() -> None:
     settings = {"case_sensitive": False, "match_mode": "contains"}
 
     assert matching_categories("Show Name - 01", categories, [], settings) == [("anime", "Show Name")]
+
+
+def test_matching_categories_respects_feed_scoped_patterns() -> None:
+    categories = [
+        CategoryRule(
+            "anime",
+            Path("anime.txt"),
+            ("Feed One Show", "Any Feed Show"),
+            (
+                MatchPattern("Feed One Show", ("feed-one",)),
+                MatchPattern("Any Feed Show"),
+            ),
+        )
+    ]
+    settings = {"case_sensitive": False, "match_mode": "contains"}
+
+    assert matching_categories("Feed One Show - 01", categories, [], settings, "other-feed") == []
+    assert matching_categories("Feed One Show - 01", categories, [], settings, "feed-one") == [("anime", "Feed One Show")]
+    assert matching_categories("Any Feed Show - 01", categories, [], settings, "other-feed") == [("anime", "Any Feed Show")]
