@@ -10,6 +10,17 @@ def test_validate_settings_accepts_valid_defaults() -> None:
     validate_settings(
         {
             "prefer_download_type": "magnet",
+            "match_mode": "literal",
+            "write_magnet_format": "title_and_magnet",
+            "max_log_executions": 1,
+        }
+    )
+
+
+def test_validate_settings_accepts_contains_alias() -> None:
+    validate_settings(
+        {
+            "prefer_download_type": "magnet",
             "match_mode": "contains",
             "write_magnet_format": "title_and_magnet",
             "max_log_executions": 1,
@@ -30,7 +41,7 @@ def test_validate_settings_accepts_valid_defaults() -> None:
 def test_validate_settings_rejects_invalid_values(key: str, value: object, message: str) -> None:
     settings = {
         "prefer_download_type": "magnet",
-        "match_mode": "contains",
+        "match_mode": "literal",
         "write_magnet_format": "title_and_magnet",
         "max_log_executions": 1,
     }
@@ -100,6 +111,7 @@ def test_load_settings_creates_default_file_when_missing(tmp_path: Path, monkeyp
 
     assert (project_root / "settings.json").is_file()
     assert Path(settings["root_folder"]) == (downloads_folder / "RSS_Automation").resolve()
+    assert settings["match_mode"] == "literal"
 
 
 def test_get_downloads_folder_falls_back_to_home_downloads(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
