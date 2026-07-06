@@ -1,0 +1,47 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Python: Create virtual environment",
+            "type": "shell",
+            "command": "python -m venv .venv",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Python: Upgrade pip",
+            "type": "shell",
+            "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe -m pip install --upgrade pip",
+            "problemMatcher": []
+        },
+        {
+            "label": "Python: Install requirements",
+            "type": "shell",
+            "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "RSS: Run once",
+            "type": "shell",
+            "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe RSS_Automation.py",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "RSS: Run loop",
+            "type": "shell",
+            "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe RSS_Automation.py --loop",
+            "problemMatcher": []
+        },
+        {
+            "label": "RSS: Dry run",
+            "type": "shell",
+            "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe RSS_Automation.py --settings settings.json",
+            "problemMatcher": []
+        }
+    ]
+}
