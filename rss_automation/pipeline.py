@@ -75,7 +75,7 @@ def process_items(
     duplicates_by_category: Counter[str] = Counter()
 
     for item in items:
-        matches = matching_categories(item.title, categories, exclusions, settings, item.feed_name)
+        matches = matching_categories(item, categories, exclusions, settings, item.feed_name)
         if not matches:
             continue
 
