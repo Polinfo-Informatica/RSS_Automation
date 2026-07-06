@@ -3,26 +3,32 @@
     "configurations": [
         {
             "name": "Run RSS Automation",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}\\RSS_Automation.py",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            "env": {
+                "PYDEVD_USE_SYS_MONITORING": "NO"
+            }
         },
         {
             "name": "Run RSS Automation Loop",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}\\RSS_Automation.py",
             "args": [
                 "--loop"
             ],
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            "env": {
+                "PYDEVD_USE_SYS_MONITORING": "NO"
+            }
         },
         {
             "name": "Run RSS Automation With Local Settings",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}\\RSS_Automation.py",
             "args": [
@@ -30,7 +36,10 @@
                 "${workspaceFolder}\\settings.json"
             ],
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            "env": {
+                "PYDEVD_USE_SYS_MONITORING": "NO"
+            }
         }
     ]
 }
