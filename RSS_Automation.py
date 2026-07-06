@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""
+r"""
 RSS Automation v0.0.1.a
 
 Reads RSS feeds, matches titles against category TXT files, applies global exclusions,
 and saves either magnet links or .torrent files for Tixati to consume.
 
 Default layout:
-    D:\Root\Downloads\RSS_Config\rss.txt
-    D:\Root\Downloads\RSS_Config\exclude.txt
-    D:\Root\Downloads\RSS_Config\anime.txt
-    D:\Root\Downloads\RSS_Magnet\
-    D:\Root\Downloads\RSS_Torrent\
-    D:\Root\Downloads\Logs\
+    ${project_root}\RSS_Config\rss.txt
+    ${project_root}\RSS_Config\exclude.txt
+    ${project_root}\RSS_Config\anime.txt
+    ${project_root}\RSS_Magnet\
+    ${project_root}\RSS_Torrent\
+    ${project_root}\Logs\
 
 Important:
     No category subfolders are created inside RSS_Magnet or RSS_Torrent.
@@ -30,7 +30,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple
 from urllib.parse import parse_qs, unquote, urlparse
 
 import feedparser
@@ -38,11 +38,11 @@ import requests
 
 APP_VERSION = "v0.0.1.a"
 DEFAULT_SETTINGS = {
-    "root_folder": "D:\\Root\\Downloads",
-    "config_folder": "D:\\Root\\Downloads\\RSS_Config",
-    "magnet_output_folder": "D:\\Root\\Downloads\\RSS_Magnet",
-    "torrent_output_folder": "D:\\Root\\Downloads\\RSS_Torrent",
-    "log_folder": "D:\\Root\\Downloads\\Logs",
+    "root_folder": "${project_root}",
+    "config_folder": "${project_root}\\RSS_Config",
+    "magnet_output_folder": "${project_root}\\RSS_Magnet",
+    "torrent_output_folder": "${project_root}\\RSS_Torrent",
+    "log_folder": "${project_root}\\Logs",
     "rss_file": "rss.txt",
     "exclude_file": "exclude.txt",
     "processed_file": "processed.txt",
@@ -51,9 +51,17 @@ DEFAULT_SETTINGS = {
     "case_sensitive": False,
     "skip_duplicates": True,
     "download_timeout_seconds": 30,
+    "scan_interval_seconds": 300,
     "request_user_agent": "RSS_Automation/0.0.1.a",
     "write_magnet_format": "title_and_magnet",
     "dry_run": False,
+}
+PATH_SETTING_KEYS = {
+    "root_folder",
+    "config_folder",
+    "magnet_output_folder",
+    "torrent_output_folder",
+    "log_folder",
 }
 RESERVED_CONFIG_FILES = {"rss.txt", "exclude.txt", "processed.txt"}
 MAGNET_RE = re.compile(r"magnet:\?[^\s\"'<>]+", re.IGNORECASE)
@@ -84,18 +92,49 @@ class SelectedDownload:
     value: str
 
 
-def load_settings(settings_path: Path) -> dict:
+def get_project_root() -> Path:
+    return Path(__file__).resolve().parent
+
+
+def resolve_settings_path(settings_path: Path, project_root: Path) -> Path:
+    if settings_path.is_absolute():
+        return settings_path
+    return project_root / settings_path
+
+
+def resolve_path_value(value: str, project_root: Path) -> str:
+    project_root_text = str(project_root)
+    expanded = str(value)
+    for token in ("${project_root}", "{project_root}", "$PROJECT_ROOT", "%PROJECT_ROOT%"):
+        expanded = expanded.replace(token, project_root_text)
+    expanded = os.path.expandvars(os.path.expanduser(expanded))
+    path = Path(expanded)
+    if not path.is_absolute():
+        path = project_root / path
+    return str(path.resolve())
+
+
+def resolve_configured_paths(settings: dict, project_root: Path) -> dict:
+    resolved = dict(settings)
+    resolved["project_root"] = str(project_root)
+    for key in PATH_SETTING_KEYS:
+        resolved[key] = resolve_path_value(str(resolved[key]), project_root)
+    return resolved
+
+
+def load_settings(settings_path: Path, project_root: Path) -> dict:
+    settings_path = resolve_settings_path(settings_path, project_root)
     if not settings_path.exists():
         settings_path.write_text(json.dumps(DEFAULT_SETTINGS, indent=4, ensure_ascii=False), encoding="utf-8")
-        return dict(DEFAULT_SETTINGS)
+        settings = dict(DEFAULT_SETTINGS)
+    else:
+        with settings_path.open("r", encoding="utf-8-sig") as f:
+            loaded = json.load(f)
+        settings = dict(DEFAULT_SETTINGS)
+        settings.update(loaded)
 
-    with settings_path.open("r", encoding="utf-8-sig") as f:
-        loaded = json.load(f)
-
-    settings = dict(DEFAULT_SETTINGS)
-    settings.update(loaded)
     validate_settings(settings)
-    return settings
+    return resolve_configured_paths(settings, project_root)
 
 
 def validate_settings(settings: dict) -> None:
@@ -147,6 +186,7 @@ def setup_logging(log_folder: Path) -> None:
             logging.FileHandler(log_file, encoding="utf-8"),
             logging.StreamHandler(sys.stdout),
         ],
+        force=True,
     )
 
 
@@ -269,20 +309,6 @@ def extension_from_url(url: str) -> str:
     if name.lower().endswith(".torrent"):
         return ".torrent"
     return ".torrent"
-
-
-def unique_path(folder: Path, filename: str) -> Path:
-    candidate = folder / filename
-    if not candidate.exists():
-        return candidate
-
-    stem = candidate.stem
-    suffix = candidate.suffix
-    for i in range(2, 10000):
-        alt = folder / f"{stem} ({i}){suffix}"
-        if not alt.exists():
-            return alt
-    raise RuntimeError(f"Could not create unique filename for {candidate}")
 
 
 def find_magnet_in_text(*parts: object) -> Optional[str]:
@@ -486,12 +512,15 @@ def process_items(items: Sequence[RssItem], categories: Sequence[CategoryRule], 
 
 
 def run_once(settings_path: Path) -> int:
-    settings = load_settings(settings_path)
+    project_root = get_project_root()
+    settings_file = resolve_settings_path(settings_path, project_root)
+    settings = load_settings(settings_file, project_root)
     paths = setup_folders(settings)
     setup_logging(paths["log"])
 
     logging.info("RSS Automation %s started", APP_VERSION)
-    logging.info("Settings file: %s", settings_path.resolve())
+    logging.info("Project root: %s", project_root)
+    logging.info("Settings file: %s", settings_file.resolve())
 
     rss_urls = read_rss_urls(paths["config"], settings["rss_file"])
     exclusions = read_exclusions(paths["config"], settings["exclude_file"])
@@ -504,6 +533,7 @@ def run_once(settings_path: Path) -> int:
         logging.error("No category TXT files with patterns found in %s", paths["config"])
         return 2
 
+    logging.info("Config folder: %s", paths["config"])
     logging.info("RSS feeds: %s", len(rss_urls))
     logging.info("Categories: %s", ", ".join(rule.category for rule in categories))
     logging.info("Exclusions: %s", len(exclusions))
@@ -525,7 +555,7 @@ def run_once(settings_path: Path) -> int:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=f"RSS Automation {APP_VERSION}")
-    parser.add_argument("--settings", default="settings.json", help="Path to settings.json. Default: settings.json")
+    parser.add_argument("--settings", default="settings.json", help="Path to settings.json. Relative paths resolve from the project root.")
     parser.add_argument("--loop", action="store_true", help="Run continuously using scan_interval_seconds from settings.json.")
     args = parser.parse_args(argv)
 
@@ -534,9 +564,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if not args.loop:
         return run_once(settings_path)
 
+    project_root = get_project_root()
     while True:
         try:
-            settings = load_settings(settings_path)
+            settings = load_settings(settings_path, project_root)
             interval = int(settings.get("scan_interval_seconds", 300))
             code = run_once(settings_path)
             if code not in {0, 2}:
