@@ -1,0 +1,41 @@
+# Visual Studio / VS Code local state
+.vs/
+.vscode/*.log
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache/build files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# Local runtime output
+Logs/*.log
+RSS_Config/processed.txt
+RSS_Magnet/*
+RSS_Torrent/*
+
+# Keep output folders in Git
+!RSS_Magnet/.gitkeep
+!RSS_Torrent/.gitkeep
+!Logs/.gitkeep
+
+# Local secrets / private overrides
+settings.local.json
+*.local.json
+.env
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
