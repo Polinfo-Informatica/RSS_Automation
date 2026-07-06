@@ -15,6 +15,24 @@ from rss_automation.constants import DEFAULT_SETTINGS, PATH_SETTING_KEYS
 FOLDERID_DOWNLOADS = UUID("374DE290-123F-4565-9164-39C4925E467B")
 
 
+class WindowsGUID(ctypes.Structure):
+    """ctypes representation of the Windows GUID structure."""
+
+    _fields_ = [
+        ("Data1", ctypes.c_ulong),
+        ("Data2", ctypes.c_ushort),
+        ("Data3", ctypes.c_ushort),
+        ("Data4", ctypes.c_ubyte * 8),
+    ]
+
+
+def guid_from_uuid(value: UUID) -> WindowsGUID:
+    """Convert a Python UUID into a Windows GUID structure."""
+
+    data4 = (ctypes.c_ubyte * 8).from_buffer_copy(value.bytes[8:])
+    return WindowsGUID(value.time_low, value.time_mid, value.time_hi_version, data4)
+
+
 def get_project_root() -> Path:
     """Return the repository/project root, assuming this package lives under it."""
 
@@ -36,9 +54,9 @@ def get_downloads_folder() -> Path:
 def get_windows_known_folder(folder_id: UUID) -> Path:
     """Read a Windows known-folder path through SHGetKnownFolderPath."""
 
+    guid = guid_from_uuid(folder_id)
     path_ptr = ctypes.c_wchar_p()
-    folder_id_bytes = folder_id.bytes_le
-    result = ctypes.windll.shell32.SHGetKnownFolderPath(folder_id_bytes, 0, None, ctypes.byref(path_ptr))
+    result = ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(path_ptr))
 
     if result != 0:
         raise OSError(f"SHGetKnownFolderPath failed with HRESULT {result:#x}")
