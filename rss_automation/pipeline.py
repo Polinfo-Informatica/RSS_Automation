@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from rss_automation.config_files import read_categories, read_exclusions, read_rss_urls
 from rss_automation.duplicate_tracker import append_processed, load_processed, processed_key
