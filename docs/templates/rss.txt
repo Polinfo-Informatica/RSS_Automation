@@ -1,3 +1,7 @@
 # Put one RSS feed URL per line.
-# Example:
+# Plain format:
 # https://example.test/feed.xml
+#
+# Optional named format for feed-specific matching:
+# erai = https://example.test/erai.xml
+# movies = https://example.test/movies.xml
