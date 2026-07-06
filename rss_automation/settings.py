@@ -170,9 +170,9 @@ def validate_settings(settings: dict[str, Any]) -> None:
     if prefer not in {"magnet", "torrent"}:
         raise ValueError('settings.json: "prefer_download_type" must be "magnet" or "torrent".')
 
-    match_mode = str(settings.get("match_mode", "contains")).lower().strip()
-    if match_mode not in {"contains", "exact", "regex"}:
-        raise ValueError('settings.json: "match_mode" must be "contains", "exact", or "regex".')
+    match_mode = str(settings.get("match_mode", "literal")).lower().strip()
+    if match_mode not in {"literal", "contains", "exact", "regex"}:
+        raise ValueError('settings.json: "match_mode" must be "literal", "contains", "exact", or "regex".')
 
     magnet_format = str(settings.get("write_magnet_format", "title_and_magnet")).lower().strip()
     if magnet_format not in {"magnet_only", "title_and_magnet"}:
