@@ -32,11 +32,11 @@ INVALID_FILENAME_CHARS_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 MULTISPACE_RE = re.compile(r"\s+")
 
 DEFAULT_SETTINGS: dict[str, Any] = {
-    "root_folder": "${project_root}",
-    "config_folder": "${project_root}\\RSS_Config",
-    "magnet_output_folder": "${project_root}\\RSS_Magnet",
-    "torrent_output_folder": "${project_root}\\RSS_Torrent",
-    "log_folder": "${project_root}\\Logs",
+    "root_folder": "${downloads_folder}\\RSS_Automation",
+    "config_folder": "${root_folder}\\RSS_Config",
+    "magnet_output_folder": "${root_folder}\\RSS_Magnet",
+    "torrent_output_folder": "${root_folder}\\RSS_Torrent",
+    "log_folder": "${root_folder}\\Logs",
     "rss_file": "rss.txt",
     "exclude_file": "exclude.txt",
     "processed_file": "processed.txt",
