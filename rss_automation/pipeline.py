@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections import Counter
 from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
@@ -45,6 +46,17 @@ def choose_download(item: RssItem, preference: str) -> SelectedDownload | None:
     return None
 
 
+def log_duplicate_summary(duplicates_by_category: Counter[str]) -> None:
+    """Log one duplicate summary instead of one line per skipped item."""
+
+    total = duplicates_by_category.total()
+    if total == 0:
+        return
+
+    details = ", ".join(f"{category}: {count}" for category, count in sorted(duplicates_by_category.items()))
+    logging.info("Duplicate skipped: %s total (%s)", total, details)
+
+
 def process_items(
     items: Sequence[RssItem],
     categories: Sequence[CategoryRule],
@@ -60,6 +72,7 @@ def process_items(
     matched_count = 0
     saved_count = 0
     skipped_count = 0
+    duplicates_by_category: Counter[str] = Counter()
 
     for item in items:
         matches = matching_categories(item.title, categories, exclusions, settings, item.feed_name)
@@ -77,7 +90,7 @@ def process_items(
             key = processed_key(item, selected, category)
 
             if bool(settings["skip_duplicates"]) and key in processed:
-                logging.info("Duplicate skipped: [%s] %s", category, item.title)
+                duplicates_by_category[category] += 1
                 skipped_count += 1
                 continue
 
@@ -99,6 +112,7 @@ def process_items(
                 )
                 skipped_count += 1
 
+    log_duplicate_summary(duplicates_by_category)
     return RunStats(items_read=len(items), matched=matched_count, saved=saved_count, skipped=skipped_count)
 
 
