@@ -7,7 +7,8 @@ import re
 from collections.abc import Sequence
 from typing import Any
 
-from rss_automation.models import CategoryRule
+from rss_automation.config_files import normalize_feed_name
+from rss_automation.models import CategoryRule, MatchPattern
 
 
 def normalize_text(text: str, case_sensitive: bool) -> str:
@@ -52,11 +53,30 @@ def title_matches_pattern(title: str, pattern: str, match_mode: str, case_sensit
     return pattern_cmp in title_cmp
 
 
+def pattern_applies_to_feed(pattern: MatchPattern, feed_name: str) -> bool:
+    """Return True when a scoped pattern can run against the current feed."""
+
+    if not pattern.feed_names:
+        return True
+
+    return normalize_feed_name(feed_name) in pattern.feed_names
+
+
+def iter_match_patterns(rule: CategoryRule) -> tuple[MatchPattern, ...]:
+    """Return parsed match patterns, preserving compatibility with old rule objects."""
+
+    if rule.match_patterns:
+        return rule.match_patterns
+
+    return tuple(MatchPattern(text=pattern) for pattern in rule.patterns)
+
+
 def matching_categories(
     title: str,
     categories: Sequence[CategoryRule],
     exclusions: Sequence[str],
     settings: dict[str, Any],
+    feed_name: str = "",
 ) -> list[tuple[str, str]]:
     """Return category/pattern pairs matching a title after exclusions."""
 
@@ -68,9 +88,11 @@ def matching_categories(
     match_mode = str(settings["match_mode"]).lower().strip()
 
     for rule in categories:
-        for pattern in rule.patterns:
-            if title_matches_pattern(title, pattern, match_mode, case_sensitive):
-                matches.append((rule.category, pattern))
+        for pattern in iter_match_patterns(rule):
+            if not pattern_applies_to_feed(pattern, feed_name):
+                continue
+            if title_matches_pattern(title, pattern.text, match_mode, case_sensitive):
+                matches.append((rule.category, pattern.text))
                 break
 
     return matches
