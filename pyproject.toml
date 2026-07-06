@@ -52,7 +52,3 @@ check_untyped_defs = true
 [[tool.mypy.overrides]]
 module = ["feedparser.*", "requests.*"]
 ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["tests.*"]
-disallow_untyped_defs = false
