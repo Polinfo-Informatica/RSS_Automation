@@ -16,7 +16,7 @@
 
     "download_timeout_seconds": 30,
     "scan_interval_seconds": 300,
-    "request_user_agent": "RSS_Automation/0.0.1.a",
+    "request_user_agent": "RSS_Automation/v1.0.0.1.a",
 
     "write_magnet_format": "title_and_magnet",
     "max_log_executions": 100,

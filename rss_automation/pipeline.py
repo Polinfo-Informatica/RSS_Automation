@@ -1,0 +1,167 @@
+"""Main RSS automation pipeline."""
+
+from __future__ import annotations
+
+import logging
+import time
+from collections.abc import Sequence
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from rss_automation.config_files import read_categories, read_exclusions, read_rss_urls
+from rss_automation.duplicate_tracker import append_processed, load_processed, processed_key
+from rss_automation.logging_config import (
+    log_run_footer,
+    log_run_header,
+    prune_master_log,
+    prune_timestamped_logs,
+    setup_logging,
+    shutdown_logging,
+)
+from rss_automation.matching import matching_categories
+from rss_automation.models import CategoryRule, RssItem, RunStats, SelectedDownload
+from rss_automation.output_writers import download_torrent_file, save_magnet
+from rss_automation.rss_reader import parse_feed
+from rss_automation.settings import get_project_root, load_settings, resolve_settings_path, setup_folders
+
+
+def choose_download(item: RssItem, preference: str) -> SelectedDownload | None:
+    """Choose magnet or torrent according to preference, with automatic fallback."""
+
+    preference = preference.lower().strip()
+
+    if item.magnet and item.torrent_url:
+        if preference == "torrent":
+            return SelectedDownload("torrent", item.torrent_url)
+        return SelectedDownload("magnet", item.magnet)
+
+    if item.magnet:
+        return SelectedDownload("magnet", item.magnet)
+    if item.torrent_url:
+        return SelectedDownload("torrent", item.torrent_url)
+
+    return None
+
+
+def process_items(
+    items: Sequence[RssItem],
+    categories: Sequence[CategoryRule],
+    exclusions: Sequence[str],
+    paths: dict[str, Path],
+    settings: dict[str, Any],
+) -> RunStats:
+    """Match RSS items, save selected output files, and update processed.txt."""
+
+    processed_path = paths["config"] / str(settings["processed_file"])
+    processed = load_processed(processed_path)
+
+    matched_count = 0
+    saved_count = 0
+    skipped_count = 0
+
+    for item in items:
+        matches = matching_categories(item.title, categories, exclusions, settings)
+        if not matches:
+            continue
+
+        selected = choose_download(item, str(settings["prefer_download_type"]))
+        if not selected:
+            logging.info("Matched but no magnet/torrent found: %s", item.title)
+            skipped_count += 1
+            continue
+
+        for category, pattern in matches:
+            matched_count += 1
+            key = processed_key(item, selected, category)
+
+            if bool(settings["skip_duplicates"]) and key in processed:
+                logging.info("Duplicate skipped: [%s] %s", category, item.title)
+                skipped_count += 1
+                continue
+
+            try:
+                if selected.kind == "magnet":
+                    saved_path = save_magnet(item, selected, category, pattern, paths["magnet"], settings)
+                else:
+                    saved_path = download_torrent_file(item, selected, category, paths["torrent"], settings)
+
+                if not bool(settings["dry_run"]):
+                    append_processed(processed_path, key)
+                    processed.add(key)
+
+                saved_count += 1
+                logging.info("Saved %s: [%s] %s -> %s", selected.kind, category, item.title, saved_path)
+            except Exception as exc:
+                logging.exception("Failed to save [%s] %s | %s", category, item.title, exc)
+                skipped_count += 1
+
+    return RunStats(items_read=len(items), matched=matched_count, saved=saved_count, skipped=skipped_count)
+
+
+def run_once(settings_path: Path) -> int:
+    """Execute one complete RSS scan."""
+
+    project_root = get_project_root()
+    settings_file = resolve_settings_path(settings_path, project_root)
+    settings = load_settings(settings_file, project_root)
+    paths = setup_folders(settings)
+
+    max_log_executions = int(settings.get("max_log_executions", 100))
+    run_started_at = datetime.now()
+    start_perf = time.perf_counter()
+    log_context = setup_logging(paths["log"], run_started_at)
+
+    exit_code = 0
+    stats = RunStats()
+
+    try:
+        log_run_header(run_started_at, project_root, settings_file, log_context)
+
+        rss_urls = read_rss_urls(paths["config"], str(settings["rss_file"]))
+        exclusions = read_exclusions(paths["config"], str(settings["exclude_file"]))
+        categories = read_categories(paths["config"])
+
+        if not rss_urls:
+            logging.error("No RSS URLs found. Edit %s", paths["config"] / str(settings["rss_file"]))
+            exit_code = 2
+            return exit_code
+
+        if not categories:
+            logging.error("No category TXT files with patterns found in %s", paths["config"])
+            exit_code = 2
+            return exit_code
+
+        logging.info("Config folder: %s", paths["config"])
+        logging.info("RSS feeds: %s", len(rss_urls))
+        logging.info("Categories: %s", ", ".join(rule.category for rule in categories))
+        logging.info("Exclusions: %s", len(exclusions))
+        logging.info("Preference: %s", settings["prefer_download_type"])
+        logging.info("Magnet output: %s", paths["magnet"])
+        logging.info("Torrent output: %s", paths["torrent"])
+
+        all_items: list[RssItem] = []
+        for feed_url in rss_urls:
+            try:
+                all_items.extend(
+                    parse_feed(
+                        feed_url,
+                        int(settings["download_timeout_seconds"]),
+                        str(settings["request_user_agent"]),
+                    )
+                )
+            except Exception as exc:
+                logging.exception("Failed to read feed %s | %s", feed_url, exc)
+
+        stats = process_items(all_items, categories, exclusions, paths, settings)
+        exit_code = 0
+        return exit_code
+    except Exception:
+        exit_code = 1
+        logging.exception("Unexpected fatal error during execution.")
+        return exit_code
+    finally:
+        log_run_footer(start_perf, stats, exit_code)
+        shutdown_logging()
+        prune_timestamped_logs(paths["log"], max_log_executions)
+        prune_master_log(log_context.master_log_path, max_log_executions)

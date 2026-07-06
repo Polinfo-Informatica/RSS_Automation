@@ -1,40 +1,58 @@
 # RSS Automation
 
-Version: `v0.0.1.a`
+Version: `v1.0.0.1.a`
 
-Simple RSS helper for Tixati. It reads RSS feeds, matches item titles against category `.txt` files, applies global exclusions, then saves either `.magnet` files or `.torrent` files into flat output folders.
+Project-relative RSS helper for Tixati. It reads RSS feeds, matches item titles against category `.txt` files, applies global exclusions, then saves either `.magnet` files or `.torrent` files into flat output folders.
 
-## Default folders
+## Requirements
 
-```text
-D:\Root\Downloads\RSS_Config
-D:\Root\Downloads\RSS_Magnet
-D:\Root\Downloads\RSS_Torrent
-D:\Root\Downloads\Logs
-```
+- Python 3.14 64-bit
+- Windows 10/11
+- Tixati configured to watch the output folders
 
-There are **no subfolders** inside `RSS_Magnet` or `RSS_Torrent`.
-
-## Files
+## Project layout
 
 ```text
 RSS_Automation.py
 settings.json
 requirements.txt
+requirements-dev.txt
+pyproject.toml
+rss_automation\
 RSS_Config\rss.txt
 RSS_Config\exclude.txt
 RSS_Config\anime.txt
+RSS_Magnet\
+RSS_Torrent\
+Logs\
 ```
+
+There are **no subfolders** inside `RSS_Magnet` or `RSS_Torrent`.
 
 ## Install
 
 ```bat
-pip install -r requirements.txt
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+For development tools:
+
+```bat
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 ```
 
 ## Configure
 
-Edit `settings.json` if you want to change folders or behavior.
+The default paths are project-relative:
+
+```json
+"config_folder": "${project_root}\\RSS_Config",
+"magnet_output_folder": "${project_root}\\RSS_Magnet",
+"torrent_output_folder": "${project_root}\\RSS_Torrent",
+"log_folder": "${project_root}\\Logs"
+```
 
 Important options:
 
@@ -133,6 +151,21 @@ The loop interval is controlled by:
 "scan_interval_seconds": 300
 ```
 
+## Logs
+
+Every execution writes to:
+
+```text
+Logs\RSS_Automation.log
+Logs\RSS_Automation_YYYY-MM-DD_HH-MM-SS.log
+```
+
+Retention is controlled by:
+
+```json
+"max_log_executions": 100
+```
+
 ## Duplicate prevention
 
 The script stores processed item keys in:
@@ -141,15 +174,31 @@ The script stores processed item keys in:
 RSS_Config\processed.txt
 ```
 
-This prevents repeated downloads from the same RSS entries.
+This prevents repeated outputs from the same RSS entries.
+
+## Code quality
+
+Run:
+
+```bat
+.venv\Scripts\python.exe -m ruff check .
+.venv\Scripts\python.exe -m ruff format .
+.venv\Scripts\python.exe -m black .
+```
+
+VS Code tasks are also available under:
+
+```text
+Terminal -> Run Task...
+```
 
 ## Tixati usage
 
 Configure Tixati to watch:
 
 ```text
-D:\Root\Downloads\RSS_Magnet
-D:\Root\Downloads\RSS_Torrent
+RSS_Magnet
+RSS_Torrent
 ```
 
 The script only feeds Tixati. Tixati handles the actual downloading.

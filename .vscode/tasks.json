@@ -22,6 +22,34 @@
             "problemMatcher": []
         },
         {
+            "label": "Python: Install dev requirements",
+            "type": "shell",
+            "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe -m pip install -r requirements-dev.txt",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Quality: Ruff check",
+            "type": "shell",
+            "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe -m ruff check .",
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Quality: Ruff format",
+            "type": "shell",
+            "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe -m ruff format .",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Quality: Black format",
+            "type": "shell",
+            "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe -m black .",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
             "label": "RSS: Run once",
             "type": "shell",
             "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe RSS_Automation.py",
