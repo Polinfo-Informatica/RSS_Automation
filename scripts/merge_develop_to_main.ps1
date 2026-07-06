@@ -29,6 +29,36 @@ function Test-ConnectionErrorText {
     return $Text -match $ConnectionErrorPattern
 }
 
+function Invoke-GitCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]] $Arguments
+    )
+
+    $processInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $processInfo.FileName = "git"
+    $processInfo.UseShellExecute = $false
+    $processInfo.RedirectStandardOutput = $true
+    $processInfo.RedirectStandardError = $true
+
+    foreach ($argument in $Arguments) {
+        $processInfo.ArgumentList.Add($argument)
+    }
+
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $processInfo
+
+    [void] $process.Start()
+    $standardOutput = $process.StandardOutput.ReadToEnd()
+    $standardError = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+
+    return [PSCustomObject]@{
+        ExitCode = $process.ExitCode
+        Text = (($standardOutput, $standardError) -join "`n").Trim()
+    }
+}
+
 function Invoke-GitWithRetry {
     param(
         [Parameter(Mandatory = $true)]
@@ -43,9 +73,9 @@ function Invoke-GitWithRetry {
         Write-Host "$Description (attempt $attempt of $MaxAttempts)"
         Write-Host "git $($Arguments -join ' ')"
 
-        $output = & git @Arguments 2>&1
-        $exitCode = $LASTEXITCODE
-        $text = ($output | Out-String).Trim()
+        $result = Invoke-GitCommand -Arguments $Arguments
+        $exitCode = $result.ExitCode
+        $text = $result.Text
 
         if ($text) {
             Write-Host $text
