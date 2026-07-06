@@ -138,7 +138,9 @@ def resolve_configured_paths(settings: dict[str, Any], project_root: Path) -> di
     resolved["root_folder"] = resolve_path_value(str(resolved["root_folder"]), project_root, downloads_folder)
 
     for key in PATH_SETTING_KEYS - {"root_folder"}:
-        resolved[key] = resolve_path_value(str(resolved[key]), project_root, downloads_folder, str(resolved["root_folder"]))
+        resolved[key] = resolve_path_value(
+            str(resolved[key]), project_root, downloads_folder, str(resolved["root_folder"])
+        )
 
     return resolved
 
