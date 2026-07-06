@@ -1,7 +1,7 @@
 [project]
 name = "rss-automation"
-version = "1.0.0.1"
-description = "Project-relative RSS helper."
+version = "1.1.0.0"
+description = "Windows Downloads based RSS helper."
 requires-python = ">=3.14"
 dependencies = [
     "feedparser>=6.0.11",
@@ -15,25 +15,47 @@ target-version = ["py314"]
 [tool.ruff]
 line-length = 120
 target-version = "py314"
-src = ["rss_automation"]
+src = ["rss_automation", "tests"]
 
 [tool.ruff.lint]
-select = [
-    "E",
-    "F",
-    "I",
-    "B",
-    "UP",
-    "SIM",
-    "C4",
-    "PTH",
-    "RUF",
-]
-ignore = [
-    "E501",
-]
+select = ["E", "F", "I", "B", "UP", "SIM", "C4", "PTH", "RUF"]
+ignore = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 line-ending = "cr-lf"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--cov=rss_automation --cov-report=term-missing --cov-fail-under=85"
+
+[tool.coverage.run]
+branch = true
+source = ["rss_automation"]
+omit = [
+    "rss_automation/cli.py",
+    "rss_automation/logging_config.py",
+    "rss_automation/output_writers.py",
+    "rss_automation/pipeline.py",
+    "rss_automation/rss_reader.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = ["pragma: no cover", "if __name__ == .__main__."]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["feedparser.*", "requests.*"]
+ignore_missing_imports = true

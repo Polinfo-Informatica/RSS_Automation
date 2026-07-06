@@ -2,18 +2,69 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 from rss_automation.constants import DEFAULT_SETTINGS, PATH_SETTING_KEYS
+
+FOLDERID_DOWNLOADS = UUID("374DE290-123F-4565-9164-39C4925E467B")
+
+
+class WindowsGUID(ctypes.Structure):
+    """ctypes representation of the Windows GUID structure."""
+
+    _fields_ = [
+        ("Data1", ctypes.c_ulong),
+        ("Data2", ctypes.c_ushort),
+        ("Data3", ctypes.c_ushort),
+        ("Data4", ctypes.c_ubyte * 8),
+    ]
+
+
+def guid_from_uuid(value: UUID) -> WindowsGUID:
+    """Convert a Python UUID into a Windows GUID structure."""
+
+    data4 = (ctypes.c_ubyte * 8).from_buffer_copy(value.bytes[8:])
+    return WindowsGUID(value.time_low, value.time_mid, value.time_hi_version, data4)
 
 
 def get_project_root() -> Path:
     """Return the repository/project root, assuming this package lives under it."""
 
     return Path(__file__).resolve().parent.parent
+
+
+def get_downloads_folder() -> Path:
+    """Return the current Windows Downloads known folder, with safe fallbacks."""
+
+    if sys.platform == "win32":
+        try:
+            return get_windows_known_folder(FOLDERID_DOWNLOADS)
+        except OSError:
+            pass
+
+    return Path.home() / "Downloads"
+
+
+def get_windows_known_folder(folder_id: UUID) -> Path:
+    """Read a Windows known-folder path through SHGetKnownFolderPath."""
+
+    guid = guid_from_uuid(folder_id)
+    path_ptr = ctypes.c_wchar_p()
+    result = ctypes.windll.shell32.SHGetKnownFolderPath(ctypes.byref(guid), 0, None, ctypes.byref(path_ptr))
+
+    if result != 0 or path_ptr.value is None:
+        raise OSError(f"SHGetKnownFolderPath failed with HRESULT {result:#x}")
+
+    try:
+        return Path(path_ptr.value)
+    finally:
+        ctypes.windll.ole32.CoTaskMemFree(path_ptr)
 
 
 def resolve_settings_path(settings_path: Path, project_root: Path) -> Path:
@@ -24,15 +75,47 @@ def resolve_settings_path(settings_path: Path, project_root: Path) -> Path:
     return project_root / settings_path
 
 
-def resolve_path_value(value: str, project_root: Path) -> str:
+def replace_path_tokens(value: str, project_root: Path, downloads_folder: Path, root_folder: str | None = None) -> str:
+    """Replace supported folder tokens inside one path string."""
+
+    expanded = value
+    replacements = {
+        "${project_root}": str(project_root),
+        "{project_root}": str(project_root),
+        "$PROJECT_ROOT": str(project_root),
+        "%PROJECT_ROOT%": str(project_root),
+        "${downloads_folder}": str(downloads_folder),
+        "{downloads_folder}": str(downloads_folder),
+        "$DOWNLOADS_FOLDER": str(downloads_folder),
+        "%DOWNLOADS_FOLDER%": str(downloads_folder),
+    }
+
+    if root_folder is not None:
+        replacements.update(
+            {
+                "${root_folder}": root_folder,
+                "{root_folder}": root_folder,
+                "$ROOT_FOLDER": root_folder,
+                "%ROOT_FOLDER%": root_folder,
+            }
+        )
+
+    for token, replacement in replacements.items():
+        expanded = expanded.replace(token, replacement)
+
+    return expanded
+
+
+def resolve_path_value(
+    value: str,
+    project_root: Path,
+    downloads_folder: Path | None = None,
+    root_folder: str | None = None,
+) -> str:
     """Resolve supported path variables and return an absolute path string."""
 
-    project_root_text = str(project_root)
-    expanded = value
-
-    # Several token styles are accepted for convenience in settings.json.
-    for token in ("${project_root}", "{project_root}", "$PROJECT_ROOT", "%PROJECT_ROOT%"):
-        expanded = expanded.replace(token, project_root_text)
+    downloads_folder = downloads_folder or get_downloads_folder()
+    expanded = replace_path_tokens(value, project_root, downloads_folder, root_folder)
 
     # Allow normal Windows and shell environment variables as well.
     expanded = os.path.expandvars(expanded)
@@ -48,10 +131,16 @@ def resolve_configured_paths(settings: dict[str, Any], project_root: Path) -> di
     """Resolve all path settings to absolute path strings."""
 
     resolved = dict(settings)
-    resolved["project_root"] = str(project_root)
+    downloads_folder = get_downloads_folder()
 
-    for key in PATH_SETTING_KEYS:
-        resolved[key] = resolve_path_value(str(resolved[key]), project_root)
+    resolved["project_root"] = str(project_root)
+    resolved["downloads_folder"] = str(downloads_folder)
+    resolved["root_folder"] = resolve_path_value(str(resolved["root_folder"]), project_root, downloads_folder)
+
+    for key in PATH_SETTING_KEYS - {"root_folder"}:
+        resolved[key] = resolve_path_value(
+            str(resolved[key]), project_root, downloads_folder, str(resolved["root_folder"])
+        )
 
     return resolved
 

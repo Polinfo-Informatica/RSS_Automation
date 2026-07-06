@@ -1,4 +1,0 @@
-# Put one RSS feed URL per line.
-# Example:
-# https://www.erai-raws.info/encodes/feed/?res=1080p&type=torrent&token=890f9477fec59f2836ae6d1766b29235
-https://www.erai-raws.info/encodes/feed/?res=1080p&type=torrent&token=890f9477fec59f2836ae6d1766b29235

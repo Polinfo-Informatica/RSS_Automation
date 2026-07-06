@@ -1,9 +1,9 @@
 {
-    "root_folder": "${project_root}",
-    "config_folder": "${project_root}\\RSS_Config",
-    "magnet_output_folder": "${project_root}\\RSS_Magnet",
-    "torrent_output_folder": "${project_root}\\RSS_Torrent",
-    "log_folder": "${project_root}\\Logs",
+    "root_folder": "${downloads_folder}\\RSS_Automation",
+    "config_folder": "${root_folder}\\RSS_Config",
+    "magnet_output_folder": "${root_folder}\\RSS_Magnet",
+    "torrent_output_folder": "${root_folder}\\RSS_Torrent",
+    "log_folder": "${root_folder}\\Logs",
 
     "rss_file": "rss.txt",
     "exclude_file": "exclude.txt",
@@ -16,7 +16,7 @@
 
     "download_timeout_seconds": 30,
     "scan_interval_seconds": 300,
-    "request_user_agent": "RSS_Automation/v1.0.0.1.a",
+    "request_user_agent": "RSS_Automation/v1.1.0.0",
 
     "write_magnet_format": "title_and_magnet",
     "max_log_executions": 100,
