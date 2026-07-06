@@ -1,0 +1,36 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run RSS Automation",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}\\RSS_Automation.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Run RSS Automation Loop",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}\\RSS_Automation.py",
+            "args": [
+                "--loop"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Run RSS Automation With Local Settings",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}\\RSS_Automation.py",
+            "args": [
+                "--settings",
+                "${workspaceFolder}\\settings.json"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}
