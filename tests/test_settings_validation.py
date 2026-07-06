@@ -3,13 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
-from rss_automation.settings import (
-    get_downloads_folder,
-    load_settings,
-    setup_folders,
-    validate_settings,
-)
+from rss_automation.settings import get_downloads_folder, load_settings, setup_folders, validate_settings
 
 
 def test_validate_settings_accepts_valid_defaults() -> None:
