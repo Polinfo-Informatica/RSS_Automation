@@ -1,7 +1,7 @@
 [project]
 name = "rss-automation"
-version = "1.0.0.1"
-description = "Project-relative RSS helper."
+version = "1.1.0.0"
+description = "Windows Downloads based RSS helper."
 requires-python = ">=3.14"
 dependencies = [
     "feedparser>=6.0.11",
