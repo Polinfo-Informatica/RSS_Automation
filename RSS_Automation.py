@@ -24,6 +24,7 @@ import hashlib
 import json
 import logging
 import os
+import platform
 import re
 import sys
 import time
@@ -37,6 +38,11 @@ import feedparser
 import requests
 
 APP_VERSION = "v0.0.1.a"
+MASTER_LOG_NAME = "RSS_Automation.log"
+RUN_LOG_PREFIX = "RSS_Automation_"
+RUN_LOG_SUFFIX = ".log"
+RUN_START_MARKER = "==================== RSS_AUTOMATION_RUN_START ===================="
+RUN_END_MARKER = "===================== RSS_AUTOMATION_RUN_END ====================="
 DEFAULT_SETTINGS = {
     "root_folder": "${project_root}",
     "config_folder": "${project_root}\\RSS_Config",
@@ -54,6 +60,7 @@ DEFAULT_SETTINGS = {
     "scan_interval_seconds": 300,
     "request_user_agent": "RSS_Automation/0.0.1.a",
     "write_magnet_format": "title_and_magnet",
+    "max_log_executions": 100,
     "dry_run": False,
 }
 PATH_SETTING_KEYS = {
@@ -90,6 +97,13 @@ class RssItem:
 class SelectedDownload:
     kind: str
     value: str
+
+
+@dataclass(frozen=True)
+class LogContext:
+    run_started_at: datetime
+    master_log_path: Path
+    run_log_path: Path
 
 
 def get_project_root() -> Path:
@@ -150,6 +164,13 @@ def validate_settings(settings: dict) -> None:
     if magnet_format not in {"magnet_only", "title_and_magnet"}:
         raise ValueError('settings.json: "write_magnet_format" must be "magnet_only" or "title_and_magnet".')
 
+    try:
+        max_log_executions = int(settings.get("max_log_executions", 100))
+    except (TypeError, ValueError) as exc:
+        raise ValueError('settings.json: "max_log_executions" must be an integer.') from exc
+    if max_log_executions < 1:
+        raise ValueError('settings.json: "max_log_executions" must be at least 1.')
+
 
 def setup_folders(settings: dict) -> Dict[str, Path]:
     paths = {
@@ -177,17 +198,115 @@ def setup_folders(settings: dict) -> Dict[str, Path]:
     return paths
 
 
-def setup_logging(log_folder: Path) -> None:
-    log_file = log_folder / "RSS_Automation.log"
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)s | %(message)s",
-        handlers=[
-            logging.FileHandler(log_file, encoding="utf-8"),
-            logging.StreamHandler(sys.stdout),
-        ],
-        force=True,
+def make_run_log_path(log_folder: Path, run_started_at: datetime) -> Path:
+    base = log_folder / f"{RUN_LOG_PREFIX}{run_started_at.strftime('%Y-%m-%d_%H-%M-%S')}{RUN_LOG_SUFFIX}"
+    if not base.exists():
+        return base
+
+    for index in range(2, 1000):
+        candidate = log_folder / f"{RUN_LOG_PREFIX}{run_started_at.strftime('%Y-%m-%d_%H-%M-%S')}_{index:03d}{RUN_LOG_SUFFIX}"
+        if not candidate.exists():
+            return candidate
+
+    raise RuntimeError("Could not create a unique timestamped log filename.")
+
+
+def setup_logging(log_folder: Path, run_started_at: datetime) -> LogContext:
+    log_folder.mkdir(parents=True, exist_ok=True)
+    master_log_path = log_folder / MASTER_LOG_NAME
+    run_log_path = make_run_log_path(log_folder, run_started_at)
+
+    formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+    handlers: List[logging.Handler] = [
+        logging.FileHandler(master_log_path, mode="a", encoding="utf-8"),
+        logging.FileHandler(run_log_path, mode="w", encoding="utf-8"),
+        logging.StreamHandler(sys.stdout),
+    ]
+    for handler in handlers:
+        handler.setFormatter(formatter)
+
+    logging.basicConfig(level=logging.INFO, handlers=handlers, force=True)
+    return LogContext(run_started_at=run_started_at, master_log_path=master_log_path, run_log_path=run_log_path)
+
+
+def shutdown_logging() -> None:
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        handler.flush()
+        handler.close()
+        root_logger.removeHandler(handler)
+
+
+def prune_timestamped_logs(log_folder: Path, max_log_executions: int) -> int:
+    logs = sorted(
+        (
+            path
+            for path in log_folder.glob(f"{RUN_LOG_PREFIX}*{RUN_LOG_SUFFIX}")
+            if path.name != MASTER_LOG_NAME and path.is_file()
+        ),
+        key=lambda path: (path.stat().st_mtime, path.name),
+        reverse=True,
     )
+    removed = 0
+    for old_log in logs[max_log_executions:]:
+        try:
+            old_log.unlink()
+            removed += 1
+        except OSError as exc:
+            print(f"Warning: could not remove old log {old_log}: {exc}", file=sys.stderr)
+    return removed
+
+
+def prune_master_log(master_log_path: Path, max_log_executions: int) -> None:
+    if not master_log_path.exists():
+        return
+
+    try:
+        content = master_log_path.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        print(f"Warning: could not read master log {master_log_path}: {exc}", file=sys.stderr)
+        return
+
+    parts = content.split(RUN_START_MARKER)
+    preamble = parts[0]
+    runs = [RUN_START_MARKER + part for part in parts[1:] if part.strip()]
+    if len(runs) <= max_log_executions:
+        return
+
+    kept = runs[-max_log_executions:]
+    new_content = "".join(kept)
+    if preamble.strip():
+        new_content = preamble + new_content
+
+    try:
+        master_log_path.write_text(new_content, encoding="utf-8")
+    except OSError as exc:
+        print(f"Warning: could not prune master log {master_log_path}: {exc}", file=sys.stderr)
+
+
+def log_run_header(run_started_at: datetime, project_root: Path, settings_file: Path, log_context: LogContext) -> None:
+    logging.info(RUN_START_MARKER)
+    logging.info("RSS Automation %s started", APP_VERSION)
+    logging.info("Start: %s", run_started_at.strftime("%Y-%m-%d %H:%M:%S"))
+    logging.info("Project root: %s", project_root)
+    logging.info("Settings file: %s", settings_file.resolve())
+    logging.info("Master log: %s", log_context.master_log_path)
+    logging.info("Run log: %s", log_context.run_log_path)
+    logging.info("Python: %s %s", platform.python_version(), platform.architecture()[0])
+    logging.info("Executable: %s", sys.executable)
+    logging.info("OS: %s", platform.platform())
+
+
+def log_run_footer(start_perf: float, items_read: int, matched: int, saved: int, skipped: int, exit_code: int) -> None:
+    elapsed = time.perf_counter() - start_perf
+    logging.info("Finished")
+    logging.info("RSS items read: %s", items_read)
+    logging.info("Matched: %s", matched)
+    logging.info("Saved: %s", saved)
+    logging.info("Skipped: %s", skipped)
+    logging.info("Exit code: %s", exit_code)
+    logging.info("Elapsed: %.2f seconds", elapsed)
+    logging.info(RUN_END_MARKER)
 
 
 def read_clean_lines(path: Path) -> List[str]:
@@ -516,41 +635,56 @@ def run_once(settings_path: Path) -> int:
     settings_file = resolve_settings_path(settings_path, project_root)
     settings = load_settings(settings_file, project_root)
     paths = setup_folders(settings)
-    setup_logging(paths["log"])
+    max_log_executions = int(settings.get("max_log_executions", 100))
+    run_started_at = datetime.now()
+    start_perf = time.perf_counter()
+    log_context = setup_logging(paths["log"], run_started_at)
+    exit_code = 0
+    items_read = 0
+    matched = 0
+    saved = 0
+    skipped = 0
 
-    logging.info("RSS Automation %s started", APP_VERSION)
-    logging.info("Project root: %s", project_root)
-    logging.info("Settings file: %s", settings_file.resolve())
+    try:
+        log_run_header(run_started_at, project_root, settings_file, log_context)
 
-    rss_urls = read_rss_urls(paths["config"], settings["rss_file"])
-    exclusions = read_exclusions(paths["config"], settings["exclude_file"])
-    categories = read_categories(paths["config"])
+        rss_urls = read_rss_urls(paths["config"], settings["rss_file"])
+        exclusions = read_exclusions(paths["config"], settings["exclude_file"])
+        categories = read_categories(paths["config"])
 
-    if not rss_urls:
-        logging.error("No RSS URLs found. Edit %s", paths["config"] / settings["rss_file"])
-        return 2
-    if not categories:
-        logging.error("No category TXT files with patterns found in %s", paths["config"])
-        return 2
+        if not rss_urls:
+            logging.error("No RSS URLs found. Edit %s", paths["config"] / settings["rss_file"])
+            exit_code = 2
+            return exit_code
+        if not categories:
+            logging.error("No category TXT files with patterns found in %s", paths["config"])
+            exit_code = 2
+            return exit_code
 
-    logging.info("Config folder: %s", paths["config"])
-    logging.info("RSS feeds: %s", len(rss_urls))
-    logging.info("Categories: %s", ", ".join(rule.category for rule in categories))
-    logging.info("Exclusions: %s", len(exclusions))
-    logging.info("Preference: %s", settings["prefer_download_type"])
-    logging.info("Magnet output: %s", paths["magnet"])
-    logging.info("Torrent output: %s", paths["torrent"])
+        logging.info("Config folder: %s", paths["config"])
+        logging.info("RSS feeds: %s", len(rss_urls))
+        logging.info("Categories: %s", ", ".join(rule.category for rule in categories))
+        logging.info("Exclusions: %s", len(exclusions))
+        logging.info("Preference: %s", settings["prefer_download_type"])
+        logging.info("Magnet output: %s", paths["magnet"])
+        logging.info("Torrent output: %s", paths["torrent"])
 
-    all_items: List[RssItem] = []
-    for feed_url in rss_urls:
-        try:
-            all_items.extend(parse_feed(feed_url, int(settings["download_timeout_seconds"]), str(settings["request_user_agent"])))
-        except Exception as exc:
-            logging.exception("Failed to read feed %s | %s", feed_url, exc)
+        all_items: List[RssItem] = []
+        for feed_url in rss_urls:
+            try:
+                all_items.extend(parse_feed(feed_url, int(settings["download_timeout_seconds"]), str(settings["request_user_agent"])))
+            except Exception as exc:
+                logging.exception("Failed to read feed %s | %s", feed_url, exc)
 
-    matched, saved, skipped = process_items(all_items, categories, exclusions, paths, settings)
-    logging.info("Finished. RSS items=%s matched=%s saved=%s skipped=%s", len(all_items), matched, saved, skipped)
-    return 0
+        items_read = len(all_items)
+        matched, saved, skipped = process_items(all_items, categories, exclusions, paths, settings)
+        exit_code = 0
+        return exit_code
+    finally:
+        log_run_footer(start_perf, items_read, matched, saved, skipped, exit_code)
+        shutdown_logging()
+        prune_timestamped_logs(paths["log"], max_log_executions)
+        prune_master_log(log_context.master_log_path, max_log_executions)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
