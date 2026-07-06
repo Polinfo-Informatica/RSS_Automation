@@ -1,5 +1,13 @@
 # Put one anime title or match pattern per line.
 # Filename becomes the category name.
-# Example:
+#
+# Optional feed scoping:
+# @feed erai
 # One Piece
 # BLEACH
+#
+# @feed movies
+# Example Movie Title
+#
+# @all
+# Any Feed Show
