@@ -208,11 +208,23 @@ def setup_folders(settings: dict[str, Any]) -> dict[str, Path]:
     for path in paths.values():
         path.mkdir(parents=True, exist_ok=True)
 
+    rss_starter = (
+        "# Put one RSS feed URL per line.\n"
+        "# Optional named format: feed_name = https://example.test/feed.xml\n"
+    )
+    category_starter = (
+        "# Put one title/pattern per line.\n"
+        "# Optional feed scope: @feed feed_name\n"
+        "# Return to all feeds: @all\n"
+        "# Example:\n"
+        "# One Piece\n"
+    )
+
     starter_files = {
-        paths["config"] / str(settings.get("rss_file", "rss.txt")): "# Put one RSS feed URL per line.\n",
+        paths["config"] / str(settings.get("rss_file", "rss.txt")): rss_starter,
         paths["config"] / str(settings.get("exclude_file", "exclude.txt")): "# Put one exclusion keyword per line.\n",
         paths["config"] / str(settings.get("processed_file", "processed.txt")): "",
-        paths["config"] / "anime.txt": "# Put one title/pattern per line.\n# Example:\n# One Piece\n",
+        paths["config"] / "anime.txt": category_starter,
     }
 
     for file_path, content in starter_files.items():
