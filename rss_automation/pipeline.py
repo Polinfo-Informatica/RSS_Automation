@@ -9,7 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from rss_automation.config_files import read_categories, read_exclusions, read_rss_urls
+from rss_automation.config_files import read_categories, read_exclusions, read_rss_sources
 from rss_automation.duplicate_tracker import append_processed, load_processed, processed_key
 from rss_automation.logging_config import (
     log_run_footer,
@@ -24,6 +24,7 @@ from rss_automation.models import CategoryRule, RssItem, RunStats, SelectedDownl
 from rss_automation.output_writers import download_torrent_file, save_magnet
 from rss_automation.rss_reader import parse_feed
 from rss_automation.settings import get_project_root, load_settings, resolve_settings_path, setup_folders
+from rss_automation.url_tools import redact_url
 
 
 def choose_download(item: RssItem, preference: str) -> SelectedDownload | None:
@@ -61,7 +62,7 @@ def process_items(
     skipped_count = 0
 
     for item in items:
-        matches = matching_categories(item.title, categories, exclusions, settings)
+        matches = matching_categories(item.title, categories, exclusions, settings, item.feed_name)
         if not matches:
             continue
 
@@ -118,11 +119,11 @@ def run_once(settings_path: Path) -> int:
     try:
         log_run_header(run_started_at, project_root, settings_file, log_context)
 
-        rss_urls = read_rss_urls(paths["config"], str(settings["rss_file"]))
+        rss_sources = read_rss_sources(paths["config"], str(settings["rss_file"]))
         exclusions = read_exclusions(paths["config"], str(settings["exclude_file"]))
         categories = read_categories(paths["config"])
 
-        if not rss_urls:
+        if not rss_sources:
             logging.error("No RSS URLs found. Edit %s", paths["config"] / str(settings["rss_file"]))
             exit_code = 2
             return exit_code
@@ -133,7 +134,7 @@ def run_once(settings_path: Path) -> int:
             return exit_code
 
         logging.info("Config folder: %s", paths["config"])
-        logging.info("RSS feeds: %s", len(rss_urls))
+        logging.info("RSS feeds: %s", len(rss_sources))
         logging.info("Categories: %s", ", ".join(rule.category for rule in categories))
         logging.info("Exclusions: %s", len(exclusions))
         logging.info("Preference: %s", settings["prefer_download_type"])
@@ -141,17 +142,18 @@ def run_once(settings_path: Path) -> int:
         logging.info("Torrent output: %s", paths["torrent"])
 
         all_items: list[RssItem] = []
-        for feed_url in rss_urls:
+        for source in rss_sources:
             try:
                 all_items.extend(
                     parse_feed(
-                        feed_url,
+                        source.url,
                         int(settings["download_timeout_seconds"]),
                         str(settings["request_user_agent"]),
+                        source.name,
                     )
                 )
             except Exception as exc:
-                logging.exception("Failed to read feed %s | %s", feed_url, exc)
+                logging.exception("Failed to read feed [%s] %s | %s", source.name, redact_url(source.url), exc)
 
         stats = process_items(all_items, categories, exclusions, paths, settings)
         exit_code = 0
