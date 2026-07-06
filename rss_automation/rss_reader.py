@@ -10,6 +10,7 @@ import requests
 
 from rss_automation.constants import MAGNET_RE, TORRENT_RE
 from rss_automation.models import RssItem
+from rss_automation.url_tools import redact_url
 
 
 def find_magnet_in_text(*parts: object) -> str | None:
@@ -84,14 +85,15 @@ def parse_feed(feed_url: str, timeout: int, user_agent: str) -> list[RssItem]:
     """Download and parse one RSS feed into normalized RSS items."""
 
     headers = {"User-Agent": user_agent}
-    logging.info("Reading RSS feed: %s", feed_url)
+    safe_feed_url = redact_url(feed_url)
+    logging.info("Reading RSS feed: %s", safe_feed_url)
 
     response = requests.get(feed_url, timeout=timeout, headers=headers)
     response.raise_for_status()
 
     parsed = feedparser.parse(response.content)
     if parsed.bozo:
-        logging.warning("Feed parser warning for %s: %s", feed_url, parsed.bozo_exception)
+        logging.warning("Feed parser warning for %s: %s", safe_feed_url, parsed.bozo_exception)
 
     items: list[RssItem] = []
     for entry in parsed.entries:
