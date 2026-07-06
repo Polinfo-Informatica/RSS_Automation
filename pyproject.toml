@@ -1,0 +1,39 @@
+[project]
+name = "rss-automation"
+version = "1.0.0.1"
+description = "Project-relative RSS helper for Tixati magnet and torrent automation."
+requires-python = ">=3.14"
+dependencies = [
+    "feedparser>=6.0.11",
+    "requests>=2.32.0",
+]
+
+[tool.black]
+line-length = 120
+target-version = ["py314"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+src = ["rss_automation"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "B",
+    "UP",
+    "SIM",
+    "C4",
+    "PTH",
+    "RUF",
+]
+ignore = [
+    "E501",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "crlf"
