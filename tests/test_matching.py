@@ -6,8 +6,18 @@ from rss_automation.matching import matching_categories, title_is_excluded, titl
 from rss_automation.models import CategoryRule, MatchPattern
 
 
-def test_contains_matching_is_case_insensitive_by_default() -> None:
+def test_literal_matching_is_case_insensitive_by_default() -> None:
+    assert title_matches_pattern("[Group] Mushoku Tensei - 01", "mushoku tensei", "literal", False)
+
+
+def test_contains_remains_alias_for_literal_matching() -> None:
     assert title_matches_pattern("[Group] Mushoku Tensei - 01", "mushoku tensei", "contains", False)
+
+
+def test_literal_matching_preserves_spaces() -> None:
+    assert title_matches_pattern("Grand Blue Season 3 - 01", "Grand Blue", "literal", False)
+    assert not title_matches_pattern("GrandBlue Season 3 - 01", "Grand Blue", "literal", False)
+    assert not title_matches_pattern("Grand Blue Season 3 - 01", "Grand  Blue", "literal", False)
 
 
 def test_exact_matching_requires_equal_normalized_title() -> None:
@@ -19,20 +29,23 @@ def test_regex_matching_accepts_valid_regular_expression() -> None:
     assert title_matches_pattern("Episode 012", r"Episode \d{3}", "regex", False)
 
 
-def test_exclusions_match_substrings() -> None:
+def test_exclusions_match_literal_phrases() -> None:
     assert title_is_excluded("Show Name Batch 1080p", ["batch"], False)
+    assert title_is_excluded("Show Name Batch 1080p", ["NAME batch"], False)
+    assert not title_is_excluded("ShowNameBatch 1080p", ["Name Batch"], False)
+    assert not title_is_excluded("Show Name Batch 1080p", ["Name  Batch"], False)
 
 
 def test_matching_categories_skips_excluded_titles() -> None:
     categories = [CategoryRule("anime", Path("anime.txt"), ("Show Name",))]
-    settings = {"case_sensitive": False, "match_mode": "contains"}
+    settings = {"case_sensitive": False, "match_mode": "literal"}
 
     assert matching_categories("Show Name Batch", categories, ["Batch"], settings) == []
 
 
 def test_matching_categories_returns_category_and_pattern() -> None:
     categories = [CategoryRule("anime", Path("anime.txt"), ("Show Name",))]
-    settings = {"case_sensitive": False, "match_mode": "contains"}
+    settings = {"case_sensitive": False, "match_mode": "literal"}
 
     assert matching_categories("Show Name - 01", categories, [], settings) == [("anime", "Show Name")]
 
@@ -49,7 +62,7 @@ def test_matching_categories_respects_feed_scoped_patterns() -> None:
             ),
         )
     ]
-    settings = {"case_sensitive": False, "match_mode": "contains"}
+    settings = {"case_sensitive": False, "match_mode": "literal"}
 
     assert matching_categories("Feed One Show - 01", categories, [], settings, "other-feed") == []
     assert matching_categories("Feed One Show - 01", categories, [], settings, "feed-one") == [
