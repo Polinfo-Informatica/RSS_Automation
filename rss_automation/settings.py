@@ -209,8 +209,7 @@ def setup_folders(settings: dict[str, Any]) -> dict[str, Path]:
         path.mkdir(parents=True, exist_ok=True)
 
     rss_starter = (
-        "# Put one RSS feed URL per line.\n"
-        "# Optional named format: feed_name = https://example.test/feed.xml\n"
+        "# Put one RSS feed URL per line.\n# Optional named format: feed_name = https://example.test/feed.xml\n"
     )
     category_starter = (
         "# Put one title/pattern per line.\n"

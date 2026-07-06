@@ -122,6 +122,8 @@ def read_categories(config_folder: Path) -> list[CategoryRule]:
         if not patterns:
             continue
 
-        rules.append(CategoryRule(category=path.stem, source_file=path, patterns=patterns, match_patterns=match_patterns))
+        rules.append(
+            CategoryRule(category=path.stem, source_file=path, patterns=patterns, match_patterns=match_patterns)
+        )
 
     return rules

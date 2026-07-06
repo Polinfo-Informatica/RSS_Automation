@@ -52,5 +52,9 @@ def test_matching_categories_respects_feed_scoped_patterns() -> None:
     settings = {"case_sensitive": False, "match_mode": "contains"}
 
     assert matching_categories("Feed One Show - 01", categories, [], settings, "other-feed") == []
-    assert matching_categories("Feed One Show - 01", categories, [], settings, "feed-one") == [("anime", "Feed One Show")]
-    assert matching_categories("Any Feed Show - 01", categories, [], settings, "other-feed") == [("anime", "Any Feed Show")]
+    assert matching_categories("Feed One Show - 01", categories, [], settings, "feed-one") == [
+        ("anime", "Feed One Show")
+    ]
+    assert matching_categories("Any Feed Show - 01", categories, [], settings, "other-feed") == [
+        ("anime", "Any Feed Show")
+    ]

@@ -54,12 +54,7 @@ def test_read_categories_ignores_reserved_files(tmp_path: Path) -> None:
 
 def test_read_categories_supports_feed_scoped_patterns(tmp_path: Path) -> None:
     (tmp_path / "anime.txt").write_text(
-        "@feed erai\n"
-        "Show From Erai\n"
-        "@feeds movies, series\n"
-        "Shared Show\n"
-        "@all\n"
-        "Any Feed Show\n",
+        "@feed erai\nShow From Erai\n@feeds movies, series\nShared Show\n@all\nAny Feed Show\n",
         encoding="utf-8",
     )
 

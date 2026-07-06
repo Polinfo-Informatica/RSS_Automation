@@ -94,7 +94,9 @@ def process_items(
                 saved_count += 1
                 logging.info("Saved %s: [%s] %s -> %s", selected.kind, category, item.title, saved_path)
             except Exception as exc:
-                logging.error("Failed to save [%s] %s | %s: %s", category, item.title, type(exc).__name__, redact_text(str(exc)))
+                logging.error(
+                    "Failed to save [%s] %s | %s: %s", category, item.title, type(exc).__name__, redact_text(str(exc))
+                )
                 skipped_count += 1
 
     return RunStats(items_read=len(items), matched=matched_count, saved=saved_count, skipped=skipped_count)
