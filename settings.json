@@ -19,5 +19,6 @@
     "request_user_agent": "RSS_Automation/0.0.1.a",
 
     "write_magnet_format": "title_and_magnet",
+    "max_log_executions": 100,
     "dry_run": false
 }
