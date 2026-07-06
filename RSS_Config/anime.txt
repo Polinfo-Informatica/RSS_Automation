@@ -1,5 +1,0 @@
-# Put one anime title or match pattern per line.
-# Filename becomes the category name.
-# Example:
-# One Piece
-# BLEACH
