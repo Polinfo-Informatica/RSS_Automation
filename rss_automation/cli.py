@@ -6,8 +6,8 @@ import argparse
 import logging
 import sys
 import time
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from rss_automation import __version__
 from rss_automation.pipeline import run_once
