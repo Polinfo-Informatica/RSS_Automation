@@ -51,6 +51,21 @@ function Find-PythonCommand {
     throw "Python was not found. Install Python 3.14 or make python.exe/py.exe available on PATH."
 }
 
+function Invoke-PythonCommand {
+    param(
+        [string[]] $PythonCommand,
+        [string[]] $Arguments
+    )
+
+    $pythonExecutable = $PythonCommand[0]
+    $pythonArguments = @()
+    if ($PythonCommand.Count -gt 1) {
+        $pythonArguments = $PythonCommand[1..($PythonCommand.Count - 1)]
+    }
+
+    & $pythonExecutable @pythonArguments @Arguments
+}
+
 function Test-7ZipAvailable {
     foreach ($command in @("7z.exe", "7zz.exe", "7za.exe")) {
         if ($null -ne (Get-Command $command -ErrorAction SilentlyContinue)) {
@@ -78,7 +93,6 @@ $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $VenvPython = Join-Path $ProjectRoot "env\Scripts\python.exe"
 $RequirementsFile = Join-Path $ProjectRoot "requirements.txt"
 $DevRequirementsFile = Join-Path $ProjectRoot "requirements-dev.txt"
-$RuntimeScript = Join-Path $ProjectRoot "RSS_Automation.py"
 $TaskInstaller = Join-Path $ProjectRoot "scripts\install_tixati_rss_task.ps1"
 $HookInstaller = Join-Path $ProjectRoot "scripts\install_local_git_hooks.ps1"
 $Signer = Join-Path $ProjectRoot "scripts\sign_local_scripts.ps1"
@@ -92,7 +106,9 @@ Invoke-Step "Create or verify Python virtual environment" {
     if (-not (Test-Path $VenvPython)) {
         $pythonCommand = Find-PythonCommand
         Write-Host "Creating virtual environment: $ProjectRoot\env"
-        Invoke-External "Python venv creation" { & $pythonCommand[0] @($pythonCommand[1..($pythonCommand.Count - 1)]) -m venv (Join-Path $ProjectRoot "env") }
+        Invoke-External "Python venv creation" {
+            Invoke-PythonCommand -PythonCommand $pythonCommand -Arguments @("-m", "venv", (Join-Path $ProjectRoot "env"))
+        }
     }
 
     if (-not (Test-Path $VenvPython)) {
