@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from rss_automation import __version__
-from rss_automation.pipeline import run_once
+from rss_automation.pipeline import run_config_backup_only, run_once
 from rss_automation.settings import get_project_root, load_settings
 
 
@@ -28,6 +28,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run continuously using scan_interval_seconds from settings.json.",
     )
+    parser.add_argument(
+        "--backup-config-only",
+        action="store_true",
+        help="Only create a config backup, then exit.",
+    )
+    parser.add_argument(
+        "--force-config-backup",
+        action="store_true",
+        help="Create a config backup even if one already exists today.",
+    )
     return parser
 
 
@@ -36,6 +46,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     args = build_arg_parser().parse_args(argv)
     settings_path = Path(args.settings)
+
+    if args.backup_config_only:
+        return run_config_backup_only(settings_path, force=bool(args.force_config_backup))
 
     if not args.loop:
         return run_once(settings_path)
