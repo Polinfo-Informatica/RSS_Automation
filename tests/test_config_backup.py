@@ -44,6 +44,7 @@ def test_backup_config_folder_archives_snapshot_and_removes_legacy_backups(
         pruned.append((archive_path, max_backups, command))
 
     monkeypatch.setattr("rss_automation.config_backup.update_7z_archive", fake_update_7z_archive)
+    monkeypatch.setattr("rss_automation.archive_7z.update_7z_archive", fake_update_7z_archive)
     monkeypatch.setattr("rss_automation.config_backup.prune_config_backup_archive", fake_prune_config_backup_archive)
 
     archive_path = backup_config_folder(
