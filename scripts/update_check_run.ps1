@@ -26,7 +26,6 @@ Push-Location $ProjectRoot
 try {
     Invoke-Step "Signature-only script restore" { powershell.exe -NoProfile -ExecutionPolicy Bypass -File $RestoreScript }
     Invoke-Step "Git pull" { git pull }
-    Invoke-Step "Ruff format" { python -m ruff format . }
     Invoke-Step "Quality checks" { .\scripts\check.ps1 }
     Invoke-Step "RSS Automation" { python RSS_Automation.py }
     Invoke-Step "Local script signing" { powershell.exe -NoProfile -ExecutionPolicy Bypass -File $SignScript }
