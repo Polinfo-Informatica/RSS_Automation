@@ -13,6 +13,9 @@ def test_validate_settings_accepts_valid_defaults() -> None:
             "match_mode": "literal",
             "write_magnet_format": "title_and_magnet",
             "max_log_executions": 1,
+            "feed_retry_attempts": 1,
+            "feed_retry_delay_seconds": 0,
+            "max_config_backups": 1,
         }
     )
 
@@ -24,6 +27,9 @@ def test_validate_settings_accepts_contains_alias() -> None:
             "match_mode": "contains",
             "write_magnet_format": "title_and_magnet",
             "max_log_executions": 1,
+            "feed_retry_attempts": 1,
+            "feed_retry_delay_seconds": 0,
+            "max_config_backups": 1,
         }
     )
 
@@ -36,6 +42,12 @@ def test_validate_settings_accepts_contains_alias() -> None:
         ("write_magnet_format", "invalid", "write_magnet_format"),
         ("max_log_executions", "invalid", "max_log_executions"),
         ("max_log_executions", 0, "max_log_executions"),
+        ("feed_retry_attempts", "invalid", "feed_retry_attempts"),
+        ("feed_retry_attempts", 0, "feed_retry_attempts"),
+        ("feed_retry_delay_seconds", "invalid", "feed_retry_delay_seconds"),
+        ("feed_retry_delay_seconds", -1, "feed_retry_delay_seconds"),
+        ("max_config_backups", "invalid", "max_config_backups"),
+        ("max_config_backups", 0, "max_config_backups"),
     ],
 )
 def test_validate_settings_rejects_invalid_values(key: str, value: object, message: str) -> None:
@@ -44,6 +56,9 @@ def test_validate_settings_rejects_invalid_values(key: str, value: object, messa
         "match_mode": "literal",
         "write_magnet_format": "title_and_magnet",
         "max_log_executions": 1,
+        "feed_retry_attempts": 1,
+        "feed_retry_delay_seconds": 0,
+        "max_config_backups": 1,
     }
     settings[key] = value
 
@@ -59,6 +74,7 @@ def test_setup_folders_creates_runtime_structure(tmp_path: Path) -> None:
         "magnet_output_folder": str(root / "RSS_Magnet"),
         "torrent_output_folder": str(root / "RSS_Torrent"),
         "log_folder": str(root / "Logs"),
+        "config_backup_folder": str(root / "RSS_Config_Backups"),
         "rss_file": "rss.txt",
         "exclude_file": "exclude.txt",
     }
@@ -70,6 +86,7 @@ def test_setup_folders_creates_runtime_structure(tmp_path: Path) -> None:
     assert paths["magnet"].is_dir()
     assert paths["torrent"].is_dir()
     assert paths["log"].is_dir()
+    assert paths["config_backup"].is_dir()
     assert (paths["config"] / "rss.txt").is_file()
     assert (paths["config"] / "exclude.txt").is_file()
     assert (paths["config"] / "processed.txt").is_file()
@@ -88,6 +105,7 @@ def test_setup_folders_creates_missing_starter_files_when_processed_exists(tmp_p
         "magnet_output_folder": str(root / "RSS_Magnet"),
         "torrent_output_folder": str(root / "RSS_Torrent"),
         "log_folder": str(root / "Logs"),
+        "config_backup_folder": str(root / "RSS_Config_Backups"),
         "rss_file": "rss.txt",
         "exclude_file": "exclude.txt",
         "processed_file": "processed.txt",
@@ -112,6 +130,7 @@ def test_load_settings_creates_default_file_when_missing(tmp_path: Path, monkeyp
     assert (project_root / "settings.json").is_file()
     assert Path(settings["root_folder"]) == (downloads_folder / "RSS_Automation").resolve()
     assert settings["match_mode"] == "literal"
+    assert Path(settings["config_backup_folder"]) == (downloads_folder / "RSS_Automation" / "RSS_Config_Backups").resolve()
 
 
 def test_get_downloads_folder_falls_back_to_home_downloads(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
