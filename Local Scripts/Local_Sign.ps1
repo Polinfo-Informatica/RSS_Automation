@@ -1,36 +1,34 @@
 $ErrorActionPreference = "Stop"
 
-function Invoke-Step {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string] $Name,
+$CertificateThumbprint = "D5A53E6B578CFE698A71A62C665DF0BBF8EBE060"
+$RepoRoot = "C:\Users\kaosk\source\repos\RSS_Automation"
 
-        [Parameter(Mandatory = $true)]
-        [scriptblock] $Command
-    )
+$CodeSignCert = Get-ChildItem -Path Cert:\CurrentUser\My |
+    Where-Object { $_.Thumbprint -eq $CertificateThumbprint }
 
-    Write-Host ""
-    Write-Host "Running $Name..."
-    & $Command
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Name failed with exit code $LASTEXITCODE"
-    }
+if ($null -eq $CodeSignCert) {
+    throw "Certificate not found: $CertificateThumbprint"
 }
 
-Invoke-Step "Git pull" { git pull }
-Invoke-Step "Ruff format" { python -m ruff format . }
-Invoke-Step "Quality checks" { .\scripts\check.ps1 }
-Invoke-Step "RSS Automation" { python RSS_Automation.py }
+$ScriptsToSign = @(
+    "$RepoRoot\scripts\install_tixati_rss_task.ps1",
+    "$RepoRoot\scripts\run_rss_if_tixati_open.ps1",
+    "$RepoRoot\scripts\merge_develop_to_main.ps1",
+    "$RepoRoot\scripts\update_check_run.ps1"
+)
 
-Write-Host ""
-Write-Host "Update, checks, and runtime completed successfully."
+foreach ($ScriptPath in $ScriptsToSign) {
+    if (Test-Path $ScriptPath) {
+        Write-Host "Signing: $ScriptPath"
+        Set-AuthenticodeSignature -FilePath $ScriptPath -Certificate $CodeSignCert | Out-Host
+    }
+}
 
 # SIG # Begin signature block
 # MIIFhQYJKoZIhvcNAQcCoIIFdjCCBXICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUVYcT4bJLGMXbvQFqVsftWyMK
-# WL2gggMYMIIDFDCCAfygAwIBAgIQSOBHXmSrerBCV13wFelV1DANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU56021hl8edI6bkJX9L9JKbzZ
+# il6gggMYMIIDFDCCAfygAwIBAgIQSOBHXmSrerBCV13wFelV1DANBgkqhkiG9w0B
 # AQUFADAiMSAwHgYDVQQDDBdQb3dlclNoZWxsIENvZGUgU2lnbmluZzAeFw0yNTA5
 # MzAwNzQ5MDNaFw0yNjA5MzAwODA5MDNaMCIxIDAeBgNVBAMMF1Bvd2VyU2hlbGwg
 # Q29kZSBTaWduaW5nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1zRM
@@ -50,11 +48,11 @@ Write-Host "Update, checks, and runtime completed successfully."
 # HgYDVQQDDBdQb3dlclNoZWxsIENvZGUgU2lnbmluZwIQSOBHXmSrerBCV13wFelV
 # 1DAJBgUrDgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG
 # 9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIB
-# FTAjBgkqhkiG9w0BCQQxFgQUBmGmJxO7MYdYThWgF24haFWrlrIwDQYJKoZIhvcN
-# AQEBBQAEggEAJ0a3gufyYunPRpLN+fT+Fg9bhec1s0mS7NczlbSZB1WO+MpJ8aHZ
-# 5DC9tIW0A4qwZzseVoiOTkpEqmVM5+WrKtpV6k5tAg+BEiuA4i6U+xPx45U6yc8g
-# hEaJyCqNdR8E6mFmkdf+uz0wXQfOMZELcByLkj9N6lYG4InYzAcRzLuvPLXf8GdN
-# Z2hGX7GpNUJL5iBBeu9L4uWm/rLB7eRDZYUHOfzaVYZezM3piGDQLtHLeMRSoH7K
-# Dt6rqfxC/DUNP4QvkINpsTYt2FYMxLi3oq3Obvt+Z4FambT4eknuWanG/+nZFCks
-# 6BNq9cWGqt8rNLmgrU5cvsXz+hFgrAyGzw==
+# FTAjBgkqhkiG9w0BCQQxFgQUAtfu/0+MSBQf/3uoOXeMw8bT1bYwDQYJKoZIhvcN
+# AQEBBQAEggEAZU6aA7o5HuTFIhMG8PK19hh2Bx6sVuSu7Trm7XV2LbkgbuZiWPBi
+# m4rNqOAdyyuNN/DHV27Q2FRv0UmxKd96rh5NsHKD8peF7YfXDcd0QkA2cDbbogZe
+# 4u7Cm0zufFYMqE2AgMNEQxZS/lnkmvBCQ0bmD4OM2BtbZcBZ1TH5D0HAvDUzfYpq
+# DpW8zBjLOBz9rCGY/lgJ3HT+odROGc5F/3/YfHjUCi3LPf5Tnlp2h8LTkJ61L1NF
+# GlYViji/iXOXEx2aboT7xoAdPv/g04g9qvTp+fSWm2hxoi6lEFYMY8Zxqyhus4TB
+# RWOJylV7yESWOC5Sa3/c5ObQWjzWXMsIhg==
 # SIG # End signature block
