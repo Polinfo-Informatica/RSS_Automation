@@ -163,10 +163,34 @@ def load_settings(settings_path: Path, project_root: Path) -> dict[str, Any]:
     return resolve_configured_paths(settings, project_root)
 
 
+def validate_positive_integer_setting(settings: dict[str, Any], key: str, minimum: int = 1) -> None:
+    """Validate one integer setting that must be at least minimum."""
+
+    try:
+        value = int(settings.get(key, minimum))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'settings.json: "{key}" must be an integer.') from exc
+
+    if value < minimum:
+        raise ValueError(f'settings.json: "{key}" must be at least {minimum}.')
+
+
+def validate_non_negative_integer_setting(settings: dict[str, Any], key: str) -> None:
+    """Validate one integer setting that must be zero or greater."""
+
+    try:
+        value = int(settings.get(key, 0))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'settings.json: "{key}" must be an integer.') from exc
+
+    if value < 0:
+        raise ValueError(f'settings.json: "{key}" must be zero or greater.')
+
+
 def validate_settings(settings: dict[str, Any]) -> None:
     """Raise ValueError when settings contain unsupported values."""
 
-    prefer = str(settings.get("prefer_download_type", "magnet")).lower().strip()
+    prefer = str(settings.get("prefer_download_type", "torrent")).lower().strip()
     if prefer not in {"magnet", "torrent"}:
         raise ValueError('settings.json: "prefer_download_type" must be "magnet" or "torrent".')
 
@@ -178,13 +202,10 @@ def validate_settings(settings: dict[str, Any]) -> None:
     if magnet_format not in {"magnet_only", "title_and_magnet"}:
         raise ValueError('settings.json: "write_magnet_format" must be "magnet_only" or "title_and_magnet".')
 
-    try:
-        max_log_executions = int(settings.get("max_log_executions", 100))
-    except (TypeError, ValueError) as exc:
-        raise ValueError('settings.json: "max_log_executions" must be an integer.') from exc
-
-    if max_log_executions < 1:
-        raise ValueError('settings.json: "max_log_executions" must be at least 1.')
+    validate_positive_integer_setting(settings, "max_log_executions")
+    validate_positive_integer_setting(settings, "feed_retry_attempts")
+    validate_non_negative_integer_setting(settings, "feed_retry_delay_seconds")
+    validate_positive_integer_setting(settings, "max_config_backups")
 
 
 def write_text_if_missing(path: Path, content: str) -> None:
@@ -203,6 +224,7 @@ def setup_folders(settings: dict[str, Any]) -> dict[str, Path]:
         "magnet": Path(settings["magnet_output_folder"]),
         "torrent": Path(settings["torrent_output_folder"]),
         "log": Path(settings["log_folder"]),
+        "config_backup": Path(settings["config_backup_folder"]),
     }
 
     for path in paths.values():
