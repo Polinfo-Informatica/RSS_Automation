@@ -1,8 +1,8 @@
-$ErrorActionPreference = "Stop"
-
 param(
     [string[]] $TixatiProcessNames = @("tixati")
 )
+
+$ErrorActionPreference = "Stop"
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $PythonPath = Join-Path $ProjectRoot "env\Scripts\python.exe"
