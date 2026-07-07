@@ -52,6 +52,22 @@ function Invoke-LocalScript {
     }
 }
 
+function Test-WorkingTreeClean {
+    $status = @(git status --porcelain)
+    if ($status.Count -eq 0) {
+        return
+    }
+
+    Write-Host ""
+    Write-Host "Local non-signature changes remain after signature restore:"
+    $status | ForEach-Object { Write-Host $_ }
+    Write-Host ""
+    Write-Host "Resolve these before merging. For local formatting-only changes, use:"
+    Write-Host "git restore <path>"
+    Write-Host ""
+    throw "Working tree is not clean. Merge aborted before branch checkout."
+}
+
 function Invoke-GitCommand {
     param(
         [Parameter(Mandatory = $true)]
@@ -115,6 +131,7 @@ function Invoke-GitWithRetry {
 Push-Location $ProjectRoot
 try {
     Invoke-LocalScript "Restoring signature-only PowerShell changes" $RestoreScript
+    Test-WorkingTreeClean
     Invoke-GitWithRetry "Switching to main" @("checkout", "main")
     Invoke-GitWithRetry "Pulling main" @("pull")
     Invoke-GitWithRetry "Merging develop into main" @("merge", "develop")
