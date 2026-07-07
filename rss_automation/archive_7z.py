@@ -6,6 +6,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 from collections.abc import Sequence
 from pathlib import Path, PurePosixPath
 
@@ -30,7 +31,7 @@ def candidate_7z_paths() -> list[Path]:
 def find_7z_command(configured_command: str = "") -> str | None:
     """Find a 7-Zip command from settings, PATH, or common Windows install paths."""
 
-    command = configured_command.strip()
+    command = configured_command.strip().strip('"')
     if command:
         return command
 
@@ -197,9 +198,7 @@ def prune_config_backup_archive(archive_path: Path, max_backups: int, command: s
     if not old_snapshots:
         return
 
-    delete_members = [
-        member for member in archive_members if member.split("/", 1)[0] in old_snapshots
-    ]
+    delete_members = [member for member in archive_members if member.split("/", 1)[0] in old_snapshots]
     delete_7z_archive_paths(archive_path, delete_members, command=command)
 
 
@@ -243,4 +242,8 @@ def archive_log_folder(log_folder: Path, max_log_executions: int, command: str =
 def warn_archive_failure(context: str, exc: Exception) -> None:
     """Report archive failures without hiding the main RSS run result."""
 
-    logging.warning("Could not compact %s into 7z archive | %s: %s", context, type(exc).__name__, exc)
+    message = f"Could not compact {context} into 7z archive | {type(exc).__name__}: {exc}"
+    if logging.getLogger().handlers:
+        logging.warning(message)
+    else:
+        print(f"Warning: {message}", file=sys.stderr)
