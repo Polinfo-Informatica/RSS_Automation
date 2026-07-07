@@ -59,11 +59,15 @@ def title_is_excluded(title: str, exclusions: Sequence[str], case_sensitive: boo
     return fields_are_excluded(title, exclusions, case_sensitive)
 
 
-def fields_are_excluded(search_texts: str | RssItem | Sequence[str], exclusions: Sequence[str], case_sensitive: bool) -> bool:
+def fields_are_excluded(
+    search_texts: str | RssItem | Sequence[str], exclusions: Sequence[str], case_sensitive: bool
+) -> bool:
     """Return True when any searchable field contains an exact exclusion phrase."""
 
     fields = normalize_search_texts(search_texts)
-    return any(text_contains_exact_phrase(field, exclusion, case_sensitive) for field in fields for exclusion in exclusions)
+    return any(
+        text_contains_exact_phrase(field, exclusion, case_sensitive) for field in fields for exclusion in exclusions
+    )
 
 
 def title_matches_pattern(title: str, pattern: str, match_mode: str, case_sensitive: bool) -> bool:
