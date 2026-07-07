@@ -1,36 +1,23 @@
 $ErrorActionPreference = "Stop"
 
-function Invoke-Step {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string] $Name,
+param(
+    [string] $TaskName = "RSS Automation - Tixati"
+)
 
-        [Parameter(Mandatory = $true)]
-        [scriptblock] $Command
-    )
-
-    Write-Host ""
-    Write-Host "Running $Name..."
-    & $Command
-
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Name failed with exit code $LASTEXITCODE"
-    }
+$task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+if ($null -eq $task) {
+    Write-Host "Scheduled task not found: $TaskName"
+    exit 0
 }
 
-Invoke-Step "Git pull" { git pull }
-Invoke-Step "Ruff format" { python -m ruff format . }
-Invoke-Step "Quality checks" { .\scripts\check.ps1 }
-Invoke-Step "RSS Automation" { python RSS_Automation.py }
-
-Write-Host ""
-Write-Host "Update, checks, and runtime completed successfully."
+Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
+Write-Host "Scheduled task removed: $TaskName"
 
 # SIG # Begin signature block
 # MIIFhQYJKoZIhvcNAQcCoIIFdjCCBXICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUVYcT4bJLGMXbvQFqVsftWyMK
-# WL2gggMYMIIDFDCCAfygAwIBAgIQSOBHXmSrerBCV13wFelV1DANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU1HhYNAADjm75EL6oqVPjjXEm
+# E5mgggMYMIIDFDCCAfygAwIBAgIQSOBHXmSrerBCV13wFelV1DANBgkqhkiG9w0B
 # AQUFADAiMSAwHgYDVQQDDBdQb3dlclNoZWxsIENvZGUgU2lnbmluZzAeFw0yNTA5
 # MzAwNzQ5MDNaFw0yNjA5MzAwODA5MDNaMCIxIDAeBgNVBAMMF1Bvd2VyU2hlbGwg
 # Q29kZSBTaWduaW5nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1zRM
@@ -50,11 +37,11 @@ Write-Host "Update, checks, and runtime completed successfully."
 # HgYDVQQDDBdQb3dlclNoZWxsIENvZGUgU2lnbmluZwIQSOBHXmSrerBCV13wFelV
 # 1DAJBgUrDgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG
 # 9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIB
-# FTAjBgkqhkiG9w0BCQQxFgQUBmGmJxO7MYdYThWgF24haFWrlrIwDQYJKoZIhvcN
-# AQEBBQAEggEAJ0a3gufyYunPRpLN+fT+Fg9bhec1s0mS7NczlbSZB1WO+MpJ8aHZ
-# 5DC9tIW0A4qwZzseVoiOTkpEqmVM5+WrKtpV6k5tAg+BEiuA4i6U+xPx45U6yc8g
-# hEaJyCqNdR8E6mFmkdf+uz0wXQfOMZELcByLkj9N6lYG4InYzAcRzLuvPLXf8GdN
-# Z2hGX7GpNUJL5iBBeu9L4uWm/rLB7eRDZYUHOfzaVYZezM3piGDQLtHLeMRSoH7K
-# Dt6rqfxC/DUNP4QvkINpsTYt2FYMxLi3oq3Obvt+Z4FambT4eknuWanG/+nZFCks
-# 6BNq9cWGqt8rNLmgrU5cvsXz+hFgrAyGzw==
+# FTAjBgkqhkiG9w0BCQQxFgQUhsIFoeBTmZBwVaWk16f/ncPAZo8wDQYJKoZIhvcN
+# AQEBBQAEggEAJFPtebNSlxspRIqoHR13y4fw2nYTEpBcvPM2YFm0/uN3QHVHn7WJ
+# xiAsRlIRnqnmdGNOLKIK7XTGVJ7ZLSKjg9m34OhclHKsXdaEOHXv+P9PiTfLzZsr
+# g8cTHhM27lgIrFfEMr2Xy6te4sLS9wAZ8vVnAR7cZOLXh24KNiob2zKIugwKK7p7
+# ORAlxzFlM2djrdj+u47Wjv676rQ2TZrv42iTahmEkZDC/sxy0BmPiqVOoSpOYiAL
+# CR4UK5s4E8OyvIu80dr3JQ3M1F5TBVrycpyUYKOFLVV7NYyfMO+n2e2ZQ+5792Da
+# s0FhLm0MM0czYUxgUuI5PMyxLkMoMZSUbw==
 # SIG # End signature block
