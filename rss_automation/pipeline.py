@@ -22,24 +22,15 @@ from rss_automation.logging_config import (
 )
 from rss_automation.matching import matching_categories
 from rss_automation.models import CategoryRule, RssItem, RunStats, SelectedDownload
-from rss_automation.output_writers import download_torrent_file, save_magnet
+from rss_automation.output_writers import download_torrent_file
 from rss_automation.rss_reader import parse_feed
 from rss_automation.settings import get_project_root, load_settings, resolve_settings_path, setup_folders
 from rss_automation.url_tools import redact_text, redact_url
 
 
-def choose_download(item: RssItem, preference: str) -> SelectedDownload | None:
-    """Choose magnet or torrent according to preference, with automatic fallback."""
+def choose_download(item: RssItem, preference: str = "torrent") -> SelectedDownload | None:
+    """Choose only a .torrent URL for Tixati watched-folder automation."""
 
-    preference = preference.lower().strip()
-
-    if item.magnet and item.torrent_url:
-        if preference == "torrent":
-            return SelectedDownload("torrent", item.torrent_url)
-        return SelectedDownload("magnet", item.magnet)
-
-    if item.magnet:
-        return SelectedDownload("magnet", item.magnet)
     if item.torrent_url:
         return SelectedDownload("torrent", item.torrent_url)
 
@@ -64,7 +55,7 @@ def process_items(
     paths: dict[str, Path],
     settings: dict[str, Any],
 ) -> RunStats:
-    """Match RSS items, save selected output files, and update processed.txt."""
+    """Match RSS items, save selected torrent files, and update processed.txt."""
 
     processed_path = paths["config"] / str(settings["processed_file"])
     processed = load_processed(processed_path)
@@ -79,9 +70,9 @@ def process_items(
         if not matches:
             continue
 
-        selected = choose_download(item, str(settings["prefer_download_type"]))
+        selected = choose_download(item)
         if not selected:
-            logging.info("Matched but no magnet/torrent found: %s", item.title)
+            logging.info("Matched but no .torrent URL found: %s", item.title)
             skipped_count += 1
             continue
 
@@ -95,17 +86,14 @@ def process_items(
                 continue
 
             try:
-                if selected.kind == "magnet":
-                    saved_path = save_magnet(item, selected, category, pattern, paths["magnet"], settings)
-                else:
-                    saved_path = download_torrent_file(item, selected, category, paths["torrent"], settings)
+                saved_path = download_torrent_file(item, selected, category, paths["torrent"], settings)
 
                 if not bool(settings["dry_run"]):
                     append_processed(processed_path, key)
                     processed.add(key)
 
                 saved_count += 1
-                logging.info("Saved %s: [%s] %s -> %s", selected.kind, category, item.title, saved_path)
+                logging.info("Saved torrent: [%s] %s -> %s", category, item.title, saved_path)
             except Exception as exc:
                 logging.error(
                     "Failed to save [%s] %s | %s: %s", category, item.title, type(exc).__name__, redact_text(str(exc))
@@ -153,8 +141,7 @@ def run_once(settings_path: Path) -> int:
         logging.info("RSS feeds: %s", len(rss_sources))
         logging.info("Categories: %s", ", ".join(rule.category for rule in categories))
         logging.info("Exclusions: %s", len(exclusions))
-        logging.info("Preference: %s", settings["prefer_download_type"])
-        logging.info("Magnet output: %s", paths["magnet"])
+        logging.info("Download output mode: torrent-only")
         logging.info("Torrent output: %s", paths["torrent"])
 
         all_items: list[RssItem] = []
