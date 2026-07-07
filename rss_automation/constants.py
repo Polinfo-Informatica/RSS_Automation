@@ -40,7 +40,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "rss_file": "rss.txt",
     "exclude_file": "exclude.txt",
     "processed_file": "processed.txt",
-    "prefer_download_type": "magnet",
+    "prefer_download_type": "torrent",
     "match_mode": "literal",
     "case_sensitive": False,
     "skip_duplicates": True,
