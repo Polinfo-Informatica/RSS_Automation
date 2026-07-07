@@ -23,6 +23,7 @@
 
     "write_magnet_format": "title_and_magnet",
     "backup_config_on_run": true,
+    "backup_config_once_per_day": true,
     "archive_7z_command": "",
     "max_config_backups": 50,
     "max_log_executions": 100,
