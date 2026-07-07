@@ -3,9 +3,11 @@ from __future__ import annotations
 import logging
 from collections import Counter
 
-from pytest import LogCaptureFixture
+import pytest
+from pytest import LogCaptureFixture, MonkeyPatch
+from rss_automation.config_files import RssSource
 from rss_automation.models import RssItem
-from rss_automation.pipeline import choose_download, log_duplicate_summary
+from rss_automation.pipeline import choose_download, log_duplicate_summary, read_feed_with_retries
 
 
 def test_choose_download_uses_preference_when_both_exist() -> None:
@@ -46,6 +48,63 @@ def test_choose_download_returns_none_when_no_link_exists() -> None:
     item = RssItem("feed", "title", "id", None, None, None)
 
     assert choose_download(item, "torrent") is None
+
+
+def test_read_feed_with_retries_succeeds_after_transient_failure(monkeypatch: MonkeyPatch) -> None:
+    calls = 0
+    item = RssItem("feed", "title", "id", "magnet", "torrent", "raw")
+
+    def fake_parse_feed(feed_url: str, timeout: int, user_agent: str, feed_name: str) -> list[RssItem]:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise TimeoutError("temporary failure")
+        assert feed_url == "https://example.test/feed"
+        assert timeout == 30
+        assert user_agent == "agent"
+        assert feed_name == "erai"
+        return [item]
+
+    monkeypatch.setattr("rss_automation.pipeline.parse_feed", fake_parse_feed)
+    monkeypatch.setattr("rss_automation.pipeline.time.sleep", lambda seconds: None)
+
+    result = read_feed_with_retries(
+        RssSource("erai", "https://example.test/feed"),
+        {
+            "feed_retry_attempts": 2,
+            "feed_retry_delay_seconds": 10,
+            "download_timeout_seconds": 30,
+            "request_user_agent": "agent",
+        },
+    )
+
+    assert result == [item]
+    assert calls == 2
+
+
+def test_read_feed_with_retries_raises_after_all_attempts(monkeypatch: MonkeyPatch) -> None:
+    calls = 0
+
+    def fake_parse_feed(feed_url: str, timeout: int, user_agent: str, feed_name: str) -> list[RssItem]:
+        nonlocal calls
+        calls += 1
+        raise TimeoutError("temporary failure")
+
+    monkeypatch.setattr("rss_automation.pipeline.parse_feed", fake_parse_feed)
+    monkeypatch.setattr("rss_automation.pipeline.time.sleep", lambda seconds: None)
+
+    with pytest.raises(TimeoutError):
+        read_feed_with_retries(
+            RssSource("erai", "https://example.test/feed"),
+            {
+                "feed_retry_attempts": 3,
+                "feed_retry_delay_seconds": 10,
+                "download_timeout_seconds": 30,
+                "request_user_agent": "agent",
+            },
+        )
+
+    assert calls == 3
 
 
 def test_log_duplicate_summary_logs_one_line(caplog: LogCaptureFixture) -> None:
