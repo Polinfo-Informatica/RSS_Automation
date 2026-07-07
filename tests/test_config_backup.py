@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from rss_automation.config_backup import backup_config_folder
+from rss_automation.config_backup import backup_config_folder, config_backup_exists_for_date
 
 
 def test_backup_config_folder_archives_snapshot_and_removes_legacy_backups(
@@ -65,6 +65,84 @@ def test_backup_config_folder_archives_snapshot_and_removes_legacy_backups(
     assert archived_batches[0][3] == "7z"
     assert archived_batches[1][2] == ["RSS_Config_2026-01-01_00-00-00/rss.txt"]
     assert pruned == [(backup_root / "RSS_Config_Backups.7z", 1, "7z")]
+
+
+def test_backup_config_folder_skips_when_daily_backup_exists(tmp_path: Path, monkeypatch) -> None:
+    config_folder = tmp_path / "RSS_Config"
+    backup_root = tmp_path / "RSS_Config_Backups"
+    archive_path = backup_root / "RSS_Config_Backups.7z"
+    config_folder.mkdir()
+    backup_root.mkdir()
+    archive_path.write_text("archive\n", encoding="utf-8")
+    (config_folder / "rss.txt").write_text("feed\n", encoding="utf-8")
+    calls = 0
+
+    monkeypatch.setattr(
+        "rss_automation.config_backup.config_snapshot_names",
+        lambda archive, root, command="": {"RSS_Config_2026-07-07_01-00-00"},
+    )
+
+    def fake_update_7z_archive(*args, **kwargs) -> None:
+        nonlocal calls
+        calls += 1
+
+    monkeypatch.setattr("rss_automation.config_backup.update_7z_archive", fake_update_7z_archive)
+
+    result = backup_config_folder(
+        config_folder,
+        backup_root,
+        datetime(2026, 7, 7, 4, 30, 0),
+        max_backups=1,
+        archive_command="7z",
+    )
+
+    assert result == archive_path
+    assert calls == 0
+
+
+def test_backup_config_folder_force_ignores_daily_backup(tmp_path: Path, monkeypatch) -> None:
+    config_folder = tmp_path / "RSS_Config"
+    backup_root = tmp_path / "RSS_Config_Backups"
+    config_folder.mkdir()
+    backup_root.mkdir()
+    (config_folder / "rss.txt").write_text("feed\n", encoding="utf-8")
+    calls = 0
+
+    monkeypatch.setattr(
+        "rss_automation.config_backup.config_snapshot_names",
+        lambda archive, root, command="": {"RSS_Config_2026-07-07_01-00-00"},
+    )
+
+    def fake_update_7z_archive(archive_path: Path, source_root: Path, relative_paths: list[Path], command: str = "") -> None:
+        nonlocal calls
+        calls += 1
+        archive_path.write_text("archive\n", encoding="utf-8")
+
+    monkeypatch.setattr("rss_automation.config_backup.update_7z_archive", fake_update_7z_archive)
+
+    result = backup_config_folder(
+        config_folder,
+        backup_root,
+        datetime(2026, 7, 7, 4, 30, 0),
+        max_backups=1,
+        archive_command="7z",
+        force=True,
+    )
+
+    assert result == backup_root / "RSS_Config_Backups.7z"
+    assert calls == 1
+
+
+def test_config_backup_exists_for_date_matches_snapshot_date(tmp_path: Path, monkeypatch) -> None:
+    backup_root = tmp_path / "RSS_Config_Backups"
+    archive_path = backup_root / "RSS_Config_Backups.7z"
+    monkeypatch.setattr(
+        "rss_automation.config_backup.config_snapshot_names",
+        lambda archive, root, command="": {"RSS_Config_2026-07-07_01-00-00"},
+    )
+
+    assert config_backup_exists_for_date(archive_path, backup_root, datetime(2026, 7, 7, 4, 30, 0))
+    assert not config_backup_exists_for_date(archive_path, backup_root, datetime(2026, 7, 8, 4, 30, 0))
 
 
 def test_backup_config_folder_returns_none_when_config_missing(tmp_path: Path) -> None:
