@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from rss_automation.config_backup import backup_config_folder
-from rss_automation.config_files import RssSource, read_categories, read_exclusions, read_rss_sources
+from rss_automation.config_files import read_categories, read_exclusions, read_rss_sources
 from rss_automation.duplicate_tracker import append_processed, load_processed, processed_key
 from rss_automation.logging_config import (
     log_run_footer,
@@ -22,7 +22,7 @@ from rss_automation.logging_config import (
     shutdown_logging,
 )
 from rss_automation.matching import matching_categories
-from rss_automation.models import CategoryRule, RssItem, RunStats, SelectedDownload
+from rss_automation.models import CategoryRule, FeedSource, RssItem, RunStats, SelectedDownload
 from rss_automation.output_writers import download_torrent_file, save_magnet
 from rss_automation.rss_reader import parse_feed
 from rss_automation.settings import get_project_root, load_settings, resolve_settings_path, setup_folders
@@ -47,7 +47,7 @@ def choose_download(item: RssItem, preference: str = "torrent") -> SelectedDownl
     return None
 
 
-def read_feed_with_retries(source: RssSource, settings: dict[str, Any]) -> list[RssItem]:
+def read_feed_with_retries(source: FeedSource, settings: dict[str, Any]) -> list[RssItem]:
     """Read one RSS feed with configurable retry attempts."""
 
     attempts = int(settings["feed_retry_attempts"])
