@@ -135,9 +135,7 @@ def config_snapshot_names(archive_path: Path, backup_root: Path, command: str = 
     """Return existing config backup snapshot names from the archive and legacy folders."""
 
     names = {
-        path.name
-        for path in backup_root.iterdir()
-        if path.is_dir() and path.name.startswith(CONFIG_BACKUP_PREFIX)
+        path.name for path in backup_root.iterdir() if path.is_dir() and path.name.startswith(CONFIG_BACKUP_PREFIX)
     }
 
     for archive_member in list_7z_archive_paths(archive_path, command=command):
