@@ -43,6 +43,7 @@ def test_backup_config_folder_archives_snapshot_and_removes_legacy_backups(
     def fake_prune_config_backup_archive(archive_path: Path, max_backups: int, command: str = "") -> None:
         pruned.append((archive_path, max_backups, command))
 
+    monkeypatch.setattr("rss_automation.config_backup.config_snapshot_names", lambda archive, root, command="": set())
     monkeypatch.setattr("rss_automation.config_backup.update_7z_archive", fake_update_7z_archive)
     monkeypatch.setattr("rss_automation.archive_7z.update_7z_archive", fake_update_7z_archive)
     monkeypatch.setattr("rss_automation.config_backup.prune_config_backup_archive", fake_prune_config_backup_archive)
@@ -58,12 +59,12 @@ def test_backup_config_folder_archives_snapshot_and_removes_legacy_backups(
     assert archive_path == backup_root / "RSS_Config_Backups.7z"
     assert archive_path.is_file()
     assert not old_backup.exists()
-    assert archived_batches[0][2] == [
+    assert archived_batches[0][2] == ["RSS_Config_2026-01-01_00-00-00/rss.txt"]
+    assert archived_batches[1][2] == [
         "RSS_Config_2026-07-07_04-30-00/anime.txt",
         "RSS_Config_2026-07-07_04-30-00/rss.txt",
     ]
-    assert archived_batches[0][3] == "7z"
-    assert archived_batches[1][2] == ["RSS_Config_2026-01-01_00-00-00/rss.txt"]
+    assert archived_batches[1][3] == "7z"
     assert pruned == [(backup_root / "RSS_Config_Backups.7z", 1, "7z")]
 
 
@@ -76,6 +77,7 @@ def test_backup_config_folder_skips_when_daily_backup_exists(tmp_path: Path, mon
     archive_path.write_text("archive\n", encoding="utf-8")
     (config_folder / "rss.txt").write_text("feed\n", encoding="utf-8")
     calls = 0
+    pruned: list[tuple[Path, int, str]] = []
 
     monkeypatch.setattr(
         "rss_automation.config_backup.config_snapshot_names",
@@ -87,6 +89,10 @@ def test_backup_config_folder_skips_when_daily_backup_exists(tmp_path: Path, mon
         calls += 1
 
     monkeypatch.setattr("rss_automation.config_backup.update_7z_archive", fake_update_7z_archive)
+    monkeypatch.setattr(
+        "rss_automation.config_backup.prune_config_backup_archive",
+        lambda archive, max_backups, command="": pruned.append((archive, max_backups, command)),
+    )
 
     result = backup_config_folder(
         config_folder,
@@ -98,6 +104,7 @@ def test_backup_config_folder_skips_when_daily_backup_exists(tmp_path: Path, mon
 
     assert result == archive_path
     assert calls == 0
+    assert pruned == [(archive_path, 1, "7z")]
 
 
 def test_backup_config_folder_force_ignores_daily_backup(tmp_path: Path, monkeypatch) -> None:
@@ -107,6 +114,7 @@ def test_backup_config_folder_force_ignores_daily_backup(tmp_path: Path, monkeyp
     backup_root.mkdir()
     (config_folder / "rss.txt").write_text("feed\n", encoding="utf-8")
     calls = 0
+    pruned: list[tuple[Path, int, str]] = []
 
     monkeypatch.setattr(
         "rss_automation.config_backup.config_snapshot_names",
@@ -121,6 +129,10 @@ def test_backup_config_folder_force_ignores_daily_backup(tmp_path: Path, monkeyp
         archive_path.write_text("archive\n", encoding="utf-8")
 
     monkeypatch.setattr("rss_automation.config_backup.update_7z_archive", fake_update_7z_archive)
+    monkeypatch.setattr(
+        "rss_automation.config_backup.prune_config_backup_archive",
+        lambda archive, max_backups, command="": pruned.append((archive, max_backups, command)),
+    )
 
     result = backup_config_folder(
         config_folder,
@@ -133,6 +145,7 @@ def test_backup_config_folder_force_ignores_daily_backup(tmp_path: Path, monkeyp
 
     assert result == backup_root / "RSS_Config_Backups.7z"
     assert calls == 1
+    assert pruned == [(backup_root / "RSS_Config_Backups.7z", 1, "7z")]
 
 
 def test_config_backup_exists_for_date_matches_snapshot_date(tmp_path: Path, monkeypatch) -> None:
