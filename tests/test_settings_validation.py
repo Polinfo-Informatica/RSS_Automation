@@ -130,7 +130,9 @@ def test_load_settings_creates_default_file_when_missing(tmp_path: Path, monkeyp
     assert (project_root / "settings.json").is_file()
     assert Path(settings["root_folder"]) == (downloads_folder / "RSS_Automation").resolve()
     assert settings["match_mode"] == "literal"
-    assert Path(settings["config_backup_folder"]) == (downloads_folder / "RSS_Automation" / "RSS_Config_Backups").resolve()
+    assert (
+        Path(settings["config_backup_folder"]) == (downloads_folder / "RSS_Automation" / "RSS_Config_Backups").resolve()
+    )
 
 
 def test_get_downloads_folder_falls_back_to_home_downloads(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

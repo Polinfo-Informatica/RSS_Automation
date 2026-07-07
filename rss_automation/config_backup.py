@@ -8,7 +8,9 @@ from datetime import datetime
 from pathlib import Path
 
 
-def backup_config_folder(config_folder: Path, backup_root: Path, run_started_at: datetime, max_backups: int) -> Path | None:
+def backup_config_folder(
+    config_folder: Path, backup_root: Path, run_started_at: datetime, max_backups: int
+) -> Path | None:
     """Create a timestamped backup of RSS_Config and prune old backups."""
 
     if not config_folder.exists():
