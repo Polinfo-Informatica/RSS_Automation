@@ -28,6 +28,11 @@ def backup_config_folder(config_folder: Path, backup_root: Path, run_started_at:
             suffix += 1
 
     shutil.copytree(config_folder, backup_path)
+
+    # copytree preserves source directory metadata. Touch the backup after copy
+    # so mtime-based pruning never deletes the newly created backup first.
+    backup_path.touch()
+
     logging.info("Config backup created: %s", backup_path)
 
     prune_config_backups(backup_root, max_backups)
