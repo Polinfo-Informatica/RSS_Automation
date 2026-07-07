@@ -4,6 +4,7 @@
     "magnet_output_folder": "${root_folder}\\RSS_Magnet",
     "torrent_output_folder": "${root_folder}\\RSS_Torrent",
     "log_folder": "${root_folder}\\Logs",
+    "config_backup_folder": "${root_folder}\\RSS_Config_Backups",
 
     "rss_file": "rss.txt",
     "exclude_file": "exclude.txt",
@@ -15,10 +16,14 @@
     "skip_duplicates": true,
 
     "download_timeout_seconds": 30,
+    "feed_retry_attempts": 3,
+    "feed_retry_delay_seconds": 10,
     "scan_interval_seconds": 300,
     "request_user_agent": "RSS_Automation/v1.1.0.0",
 
     "write_magnet_format": "title_and_magnet",
+    "backup_config_on_run": true,
+    "max_config_backups": 50,
     "max_log_executions": 100,
     "dry_run": false
 }
