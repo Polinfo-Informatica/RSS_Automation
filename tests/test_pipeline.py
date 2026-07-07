@@ -5,8 +5,7 @@ from collections import Counter
 
 import pytest
 from pytest import LogCaptureFixture, MonkeyPatch
-from rss_automation.config_files import RssSource
-from rss_automation.models import RssItem
+from rss_automation.models import FeedSource, RssItem
 from rss_automation.pipeline import choose_download, log_duplicate_summary, read_feed_with_retries
 
 
@@ -69,7 +68,7 @@ def test_read_feed_with_retries_succeeds_after_transient_failure(monkeypatch: Mo
     monkeypatch.setattr("rss_automation.pipeline.time.sleep", lambda seconds: None)
 
     result = read_feed_with_retries(
-        RssSource("erai", "https://example.test/feed"),
+        FeedSource("erai", "https://example.test/feed"),
         {
             "feed_retry_attempts": 2,
             "feed_retry_delay_seconds": 10,
@@ -95,7 +94,7 @@ def test_read_feed_with_retries_raises_after_all_attempts(monkeypatch: MonkeyPat
 
     with pytest.raises(TimeoutError):
         read_feed_with_retries(
-            RssSource("erai", "https://example.test/feed"),
+            FeedSource("erai", "https://example.test/feed"),
             {
                 "feed_retry_attempts": 3,
                 "feed_retry_delay_seconds": 10,
