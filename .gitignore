@@ -25,6 +25,7 @@ dist/
 # Runtime output should live under the user's Windows Downloads folder.
 Logs/
 RSS_Config/
+RSS_Config_Backups/
 RSS_Magnet/
 RSS_Torrent/
 
