@@ -19,11 +19,15 @@ from rss_automation.archive_7z import (
 )
 
 
-def config_backup_exists_for_date(archive_path: Path, backup_root: Path, run_started_at: datetime, archive_command: str = "") -> bool:
+def config_backup_exists_for_date(
+    archive_path: Path, backup_root: Path, run_started_at: datetime, archive_command: str = ""
+) -> bool:
     """Return whether a config backup snapshot already exists for the run date."""
 
     date_prefix = run_started_at.strftime("RSS_Config_%Y-%m-%d_")
-    return any(name.startswith(date_prefix) for name in config_snapshot_names(archive_path, backup_root, archive_command))
+    return any(
+        name.startswith(date_prefix) for name in config_snapshot_names(archive_path, backup_root, archive_command)
+    )
 
 
 def backup_config_folder(
@@ -46,8 +50,10 @@ def backup_config_folder(
 
     archive_legacy_backup_directories(backup_root, archive_path, command=archive_command)
 
-    if once_per_day and not force and config_backup_exists_for_date(
-        archive_path, backup_root, run_started_at, archive_command
+    if (
+        once_per_day
+        and not force
+        and config_backup_exists_for_date(archive_path, backup_root, run_started_at, archive_command)
     ):
         logging.info("Config backup skipped: a backup already exists for today in %s", archive_path)
         prune_config_backup_archive(archive_path, max_backups, command=archive_command)

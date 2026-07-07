@@ -113,7 +113,9 @@ def test_backup_config_folder_force_ignores_daily_backup(tmp_path: Path, monkeyp
         lambda archive, root, command="": {"RSS_Config_2026-07-07_01-00-00"},
     )
 
-    def fake_update_7z_archive(archive_path: Path, source_root: Path, relative_paths: list[Path], command: str = "") -> None:
+    def fake_update_7z_archive(
+        archive_path: Path, source_root: Path, relative_paths: list[Path], command: str = ""
+    ) -> None:
         nonlocal calls
         calls += 1
         archive_path.write_text("archive\n", encoding="utf-8")
