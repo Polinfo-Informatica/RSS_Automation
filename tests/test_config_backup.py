@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -40,10 +41,6 @@ def test_prune_config_backups_keeps_newest_by_mtime(tmp_path: Path) -> None:
         backup = backup_root / f"RSS_Config_2026-01-0{index + 1}_00-00-00"
         backup.mkdir()
         timestamp = now + timedelta(minutes=index).total_seconds()
-        backup.touch()
-        backup.chmod(0o700)
-        import os
-
         os.utime(backup, (timestamp, timestamp))
 
     prune_config_backups(backup_root, max_backups=2)
