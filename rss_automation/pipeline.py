@@ -149,6 +149,66 @@ def process_items(
     return RunStats(items_read=len(items), matched=matched_count, saved=saved_count, skipped=skipped_count)
 
 
+def execute_config_backup(
+    settings: dict[str, Any], paths: dict[str, Path], run_started_at: datetime, force: bool = False
+) -> None:
+    """Run the config backup with settings-controlled daily throttling."""
+
+    backup_config_folder(
+        paths["config"],
+        paths["config_backup"],
+        run_started_at,
+        int(settings["max_config_backups"]),
+        archive_command=str(settings.get("archive_7z_command", "")),
+        once_per_day=bool(settings.get("backup_config_once_per_day", True)),
+        force=force,
+    )
+
+
+def compact_logs(paths: dict[str, Path], settings: dict[str, Any]) -> None:
+    """Archive and remove plain log files after logging handlers are closed."""
+
+    try:
+        archive_log_folder(
+            paths["log"],
+            int(settings.get("max_log_executions", 100)),
+            command=str(settings.get("archive_7z_command", "")),
+        )
+    except Exception as exc:
+        warn_archive_failure("logs", exc)
+
+
+def run_config_backup_only(settings_path: Path, force: bool = False) -> int:
+    """Run only the config backup path, used by shutdown-triggered tasks."""
+
+    project_root = get_project_root()
+    settings_file = resolve_settings_path(settings_path, project_root)
+    settings = load_settings(settings_file, project_root)
+    paths = setup_folders(settings)
+
+    run_started_at = datetime.now()
+    start_perf = time.perf_counter()
+    log_context = setup_logging(paths["log"], run_started_at)
+    exit_code = 0
+
+    try:
+        log_run_header(run_started_at, project_root, settings_file, log_context)
+        logging.info("Mode: config backup only")
+        logging.info("Config folder: %s", paths["config"])
+        logging.info("Config backup archive folder: %s", paths["config_backup"])
+        logging.info("Force config backup: %s", force)
+        execute_config_backup(settings, paths, run_started_at, force=force)
+        return exit_code
+    except Exception:
+        exit_code = 1
+        logging.exception("Config backup-only execution failed.")
+        return exit_code
+    finally:
+        log_run_footer(start_perf, RunStats(), exit_code)
+        shutdown_logging()
+        compact_logs(paths, settings)
+
+
 def run_once(settings_path: Path) -> int:
     """Execute one complete RSS scan."""
 
@@ -157,8 +217,6 @@ def run_once(settings_path: Path) -> int:
     settings = load_settings(settings_file, project_root)
     paths = setup_folders(settings)
 
-    max_log_executions = int(settings.get("max_log_executions", 100))
-    archive_command = str(settings.get("archive_7z_command", ""))
     run_started_at = datetime.now()
     start_perf = time.perf_counter()
     log_context = setup_logging(paths["log"], run_started_at)
@@ -171,13 +229,7 @@ def run_once(settings_path: Path) -> int:
 
         if bool(settings["backup_config_on_run"]):
             try:
-                backup_config_folder(
-                    paths["config"],
-                    paths["config_backup"],
-                    run_started_at,
-                    int(settings["max_config_backups"]),
-                    archive_command=archive_command,
-                )
+                execute_config_backup(settings, paths, run_started_at)
             except Exception as exc:
                 warn_archive_failure("config backups", exc)
 
@@ -236,7 +288,4 @@ def run_once(settings_path: Path) -> int:
     finally:
         log_run_footer(start_perf, stats, exit_code)
         shutdown_logging()
-        try:
-            archive_log_folder(paths["log"], max_log_executions, command=archive_command)
-        except Exception as exc:
-            warn_archive_failure("logs", exc)
+        compact_logs(paths, settings)
