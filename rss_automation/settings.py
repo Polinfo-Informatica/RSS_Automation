@@ -130,7 +130,8 @@ def resolve_path_value(
 def resolve_configured_paths(settings: dict[str, Any], project_root: Path) -> dict[str, Any]:
     """Resolve all path settings to absolute path strings."""
 
-    resolved = dict(settings)
+    resolved = dict(DEFAULT_SETTINGS)
+    resolved.update(settings)
     downloads_folder = get_downloads_folder()
 
     resolved["project_root"] = str(project_root)
