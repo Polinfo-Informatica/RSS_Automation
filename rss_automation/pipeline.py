@@ -76,7 +76,7 @@ def process_items(
             skipped_count += 1
             continue
 
-        for category, pattern in matches:
+        for category, _pattern in matches:
             matched_count += 1
             key = processed_key(item, selected, category)
 
