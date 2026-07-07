@@ -9,7 +9,7 @@ from typing import Any
 from rss_automation.config_files import normalize_feed_name
 from rss_automation.models import CategoryRule, MatchPattern, RssItem
 
-PHRASE_SEPARATOR_RE = re.compile(r"[\s._\[\](){}<>!?,:;\"“”‘’]+")
+PHRASE_SEPARATOR_RE = re.compile(r"[\s._\[\](){}<>!?,:;\"“”‘’]")
 
 
 def normalize_text(text: str, case_sensitive: bool) -> str:
@@ -19,7 +19,7 @@ def normalize_text(text: str, case_sensitive: bool) -> str:
 
 
 def normalize_exact_phrase_text(text: str, case_sensitive: bool) -> str:
-    """Normalize separators while preserving exact phrase tokens."""
+    """Normalize separator characters while preserving separator count."""
 
     normalized = normalize_text(text, case_sensitive)
     return PHRASE_SEPARATOR_RE.sub(" ", normalized).strip()
