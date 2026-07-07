@@ -53,6 +53,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "request_user_agent": f"RSS_Automation/{APP_VERSION}",
     "write_magnet_format": "title_and_magnet",
     "backup_config_on_run": True,
+    "backup_config_once_per_day": True,
     "archive_7z_command": "",
     "max_config_backups": 50,
     "max_log_executions": 100,
