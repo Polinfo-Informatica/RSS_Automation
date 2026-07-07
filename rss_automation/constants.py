@@ -23,6 +23,7 @@ PATH_SETTING_KEYS = frozenset(
         "magnet_output_folder",
         "torrent_output_folder",
         "log_folder",
+        "config_backup_folder",
     }
 )
 
@@ -37,6 +38,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "magnet_output_folder": "${root_folder}\\RSS_Magnet",
     "torrent_output_folder": "${root_folder}\\RSS_Torrent",
     "log_folder": "${root_folder}\\Logs",
+    "config_backup_folder": "${root_folder}\\RSS_Config_Backups",
     "rss_file": "rss.txt",
     "exclude_file": "exclude.txt",
     "processed_file": "processed.txt",
@@ -45,9 +47,13 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "case_sensitive": False,
     "skip_duplicates": True,
     "download_timeout_seconds": 30,
+    "feed_retry_attempts": 3,
+    "feed_retry_delay_seconds": 10,
     "scan_interval_seconds": 300,
     "request_user_agent": f"RSS_Automation/{APP_VERSION}",
     "write_magnet_format": "title_and_magnet",
+    "backup_config_on_run": True,
+    "max_config_backups": 50,
     "max_log_executions": 100,
     "dry_run": False,
 }
