@@ -1,5 +1,9 @@
 $ErrorActionPreference = "Stop"
 
+$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$RestoreScript = Join-Path $ProjectRoot "scripts\restore_signed_scripts.ps1"
+$SignScript = Join-Path $ProjectRoot "scripts\sign_local_scripts.ps1"
+
 $MaxAttempts = 3
 $RetryDelaySeconds = 5
 
@@ -27,6 +31,25 @@ function Test-ConnectionErrorText {
     )
 
     return $Text -match $ConnectionErrorPattern
+}
+
+function Invoke-LocalScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Description,
+
+        [Parameter(Mandatory = $true)]
+        [string] $ScriptPath
+    )
+
+    Write-Host ""
+    Write-Host $Description
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File $ScriptPath
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -ne 0) {
+        throw "$Description failed with exit code $exitCode."
+    }
 }
 
 function Invoke-GitCommand {
@@ -89,13 +112,21 @@ function Invoke-GitWithRetry {
     }
 }
 
-Invoke-GitWithRetry "Switching to main" @("checkout", "main")
-Invoke-GitWithRetry "Pulling main" @("pull")
-Invoke-GitWithRetry "Merging develop into main" @("merge", "develop")
-Invoke-GitWithRetry "Pushing main" @("push")
-Invoke-GitWithRetry "Switching back to develop" @("checkout", "develop")
-Invoke-GitWithRetry "Merging main back into develop" @("merge", "main")
-Invoke-GitWithRetry "Pushing develop" @("push")
+Push-Location $ProjectRoot
+try {
+    Invoke-LocalScript "Restoring signature-only PowerShell changes" $RestoreScript
+    Invoke-GitWithRetry "Switching to main" @("checkout", "main")
+    Invoke-GitWithRetry "Pulling main" @("pull")
+    Invoke-GitWithRetry "Merging develop into main" @("merge", "develop")
+    Invoke-GitWithRetry "Pushing main" @("push")
+    Invoke-GitWithRetry "Switching back to develop" @("checkout", "develop")
+    Invoke-GitWithRetry "Merging main back into develop" @("merge", "main")
+    Invoke-GitWithRetry "Pushing develop" @("push")
+    Invoke-LocalScript "Signing local PowerShell scripts" $SignScript
+}
+finally {
+    Pop-Location
+}
 
 Write-Host ""
 Write-Host "Merge workflow completed successfully."
