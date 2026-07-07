@@ -9,7 +9,7 @@ from typing import Any
 from rss_automation.config_files import normalize_feed_name
 from rss_automation.models import CategoryRule, MatchPattern, RssItem
 
-PHRASE_SEPARATOR_RE = re.compile(r"[\s._\[\](){}<>!?,:;\"“”‘’]")
+PHRASE_SEPARATOR_RE = re.compile(r"[\s._\[\](){}<>!?,:;\"]")
 
 
 def normalize_text(text: str, case_sensitive: bool) -> str:
