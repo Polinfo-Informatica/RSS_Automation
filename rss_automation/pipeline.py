@@ -58,17 +58,6 @@ def read_feed_with_retries(source: FeedSource, settings: dict[str, Any]) -> list
     last_exc: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
-            if attempt == 1:
-                logging.info("Reading RSS feed [%s]: %s", source.name, redact_url(source.url))
-            else:
-                logging.info(
-                    "Retrying RSS feed [%s], attempt %s of %s: %s",
-                    source.name,
-                    attempt,
-                    attempts,
-                    redact_url(source.url),
-                )
-
             return parse_feed(source.url, timeout, user_agent, source.name)
         except Exception as exc:
             last_exc = exc
