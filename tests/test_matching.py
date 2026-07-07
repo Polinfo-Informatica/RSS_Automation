@@ -16,23 +16,31 @@ def test_literal_matching_is_case_insensitive_by_default() -> None:
     assert title_matches_pattern("[Group] Mushoku Tensei - 01", "mushoku tensei", "literal", False)
 
 
-def test_contains_remains_alias_for_literal_matching() -> None:
+def test_contains_remains_alias_for_exact_phrase_matching() -> None:
     assert title_matches_pattern("[Group] Mushoku Tensei - 01", "mushoku tensei", "contains", False)
 
 
-def test_literal_matching_preserves_spaces() -> None:
-    assert title_matches_pattern("Grand Blue Season 3 - 01", "Grand Blue", "literal", False)
+def test_exact_phrase_matching_does_not_match_inside_words() -> None:
+    assert not title_matches_pattern("Mairimashita! Iruma-kun", "ITA", "literal", False)
+    assert not title_matches_pattern("Natteita", "ITA", "literal", False)
     assert not title_matches_pattern("GrandBlue Season 3 - 01", "Grand Blue", "literal", False)
+
+
+def test_exact_phrase_matching_treats_common_archive_separators_as_spaces() -> None:
+    assert title_matches_pattern("[Grand Blue] Season 3 - 01", "Grand Blue", "literal", False)
+    assert title_matches_pattern("Grand.Blue.Season.3", "Grand Blue", "literal", False)
+    assert title_matches_pattern("Grand_Blue_Season_3", "Grand Blue", "literal", False)
+    assert title_matches_pattern("[ITA] Grand Blue", "ITA", "literal", False)
+
+
+def test_exact_phrase_matching_requires_matching_phrase_words() -> None:
+    assert title_matches_pattern("Grand Blue Season 3 - 01", "Grand Blue", "literal", False)
     assert not title_matches_pattern("Grand Blue Season 3 - 01", "Grand  Blue", "literal", False)
 
 
-def test_exact_matching_requires_equal_normalized_title() -> None:
-    assert title_matches_pattern("BLEACH", "bleach", "exact", False)
-    assert not title_matches_pattern("BLEACH - 01", "bleach", "exact", False)
-
-
-def test_regex_matching_accepts_valid_regular_expression() -> None:
-    assert title_matches_pattern("Episode 012", r"Episode \d{3}", "regex", False)
+def test_regex_and_raw_exact_modes_are_not_supported_for_matching() -> None:
+    assert not title_matches_pattern("Episode 012", r"Episode \d{3}", "regex", False)
+    assert not title_matches_pattern("BLEACH", "bleach", "exact", False)
 
 
 def test_fields_match_pattern_matches_filename_or_description() -> None:
@@ -43,7 +51,7 @@ def test_fields_match_pattern_matches_filename_or_description() -> None:
         None,
         "tor",
         "raw",
-        file_name="Grand Blue Season 3 - 01.torrent",
+        file_name="Grand.Blue.Season.3.-.01.torrent",
         description="Crunchyroll release",
     )
 
@@ -52,10 +60,14 @@ def test_fields_match_pattern_matches_filename_or_description() -> None:
     assert not fields_match_pattern(item, "Grand  Blue", "literal", False)
 
 
-def test_exclusions_match_literal_phrases() -> None:
+def test_exclusions_match_exact_phrases() -> None:
     assert title_is_excluded("Show Name Batch 1080p", ["batch"], False)
     assert title_is_excluded("Show Name Batch 1080p", ["NAME batch"], False)
+    assert title_is_excluded("Show.Name.Batch.1080p", ["Name Batch"], False)
+    assert title_is_excluded("[ITA] Show Name", ["ITA"], False)
     assert not title_is_excluded("ShowNameBatch 1080p", ["Name Batch"], False)
+    assert not title_is_excluded("Mairimashita! Iruma-kun", ["ITA"], False)
+    assert not title_is_excluded("Natteita", ["ITA"], False)
     assert not title_is_excluded("Show Name Batch 1080p", ["Name  Batch"], False)
 
 
@@ -67,7 +79,7 @@ def test_fields_are_excluded_checks_filename_or_description() -> None:
         None,
         "tor",
         "raw",
-        file_name="Show Name Batch.torrent",
+        file_name="Show.Name.Batch.torrent",
         description="Encoded test release",
     )
 
@@ -93,7 +105,7 @@ def test_matching_categories_matches_item_filename_or_description() -> None:
         None,
         "tor",
         "raw",
-        file_name="Show Name - 01.torrent",
+        file_name="Show.Name.-.01.torrent",
         description="Special Release metadata",
     )
 
