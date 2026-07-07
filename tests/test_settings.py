@@ -35,9 +35,10 @@ def test_resolve_path_value_expands_downloads_folder_token(tmp_path: Path) -> No
     assert Path(resolved) == (downloads_folder / "RSS_Automation").resolve()
 
 
-def test_resolve_configured_paths_expands_root_folder_token(tmp_path: Path, monkeypatch) -> None:
+def test_resolve_configured_paths_expands_root_folder_token_on_non_windows(tmp_path: Path, monkeypatch) -> None:
     project_root = tmp_path / "project"
     downloads_folder = tmp_path / "Downloads"
+    monkeypatch.setattr("rss_automation.settings.sys.platform", "linux")
     monkeypatch.setattr("rss_automation.settings.get_downloads_folder", lambda: downloads_folder)
 
     resolved = resolve_configured_paths(
@@ -53,6 +54,34 @@ def test_resolve_configured_paths_expands_root_folder_token(tmp_path: Path, monk
 
     assert Path(resolved["root_folder"]) == (downloads_folder / "RSS_Automation").resolve()
     assert Path(resolved["config_folder"]) == (downloads_folder / "RSS_Automation" / "RSS_Config").resolve()
+
+
+def test_resolve_configured_paths_ignores_custom_paths_on_windows(tmp_path: Path, monkeypatch) -> None:
+    project_root = tmp_path / "project"
+    downloads_folder = tmp_path / "Downloads"
+    custom_root = tmp_path / "custom"
+    monkeypatch.setattr("rss_automation.settings.sys.platform", "win32")
+    monkeypatch.setattr("rss_automation.settings.get_downloads_folder", lambda: downloads_folder)
+
+    resolved = resolve_configured_paths(
+        {
+            "root_folder": str(custom_root),
+            "config_folder": str(custom_root / "Config"),
+            "magnet_output_folder": str(custom_root / "Magnet"),
+            "torrent_output_folder": str(custom_root / "Torrent"),
+            "log_folder": str(custom_root / "Logs"),
+            "config_backup_folder": str(custom_root / "Backups"),
+        },
+        project_root,
+    )
+
+    expected_root = (downloads_folder / "RSS_Automation").resolve()
+    assert Path(resolved["root_folder"]) == expected_root
+    assert Path(resolved["config_folder"]) == expected_root / "RSS_Config"
+    assert Path(resolved["magnet_output_folder"]) == expected_root / "RSS_Magnet"
+    assert Path(resolved["torrent_output_folder"]) == expected_root / "RSS_Torrent"
+    assert Path(resolved["log_folder"]) == expected_root / "Logs"
+    assert Path(resolved["config_backup_folder"]) == expected_root / "RSS_Config_Backups"
 
 
 def test_resolve_path_value_resolves_relative_paths_from_project_root(tmp_path: Path) -> None:
