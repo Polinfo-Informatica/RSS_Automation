@@ -31,7 +31,7 @@ if (-not (Test-Path $BackupRunnerScript)) {
 $escapedRunner = $RunnerScript.Replace('"', '\"')
 $action = New-ScheduledTaskAction `
     -Execute "powershell.exe" `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$escapedRunner`"" `
+    -Argument "-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File `"$escapedRunner`"" `
     -WorkingDirectory $ProjectRoot
 
 $startupTrigger = New-ScheduledTaskTrigger -AtStartup
@@ -68,7 +68,7 @@ Register-ScheduledTask `
 $escapedBackupRunner = $BackupRunnerScript.Replace('"', '\"')
 $backupAction = New-ScheduledTaskAction `
     -Execute "powershell.exe" `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$escapedBackupRunner`" -Force" `
+    -Argument "-WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -File `"$escapedBackupRunner`" -Force" `
     -WorkingDirectory $ProjectRoot
 
 $shutdownSubscription = "<QueryList><Query Id='0' Path='System'><Select Path='System'>*[System[Provider[@Name='User32'] and EventID=1074]]</Select></Query></QueryList>"
@@ -106,8 +106,10 @@ Write-Host "User: $currentUser"
 Write-Host "Run level: Highest available privileges"
 Write-Host "Triggers: Windows startup; every $HourlyInterval hour(s)"
 Write-Host "Condition: wrapper exits unless Tixati is running"
+Write-Host "Window: hidden when started by Task Scheduler"
 Write-Host "Manual test command: Start-ScheduledTask -TaskName '$TaskName'"
 Write-Host ""
 Write-Host "Shutdown backup task installed or updated: $ShutdownBackupTaskName"
 Write-Host "Trigger: Windows shutdown/restart initiated event"
+Write-Host "Window: hidden when started by Task Scheduler"
 Write-Host "Manual test command: Start-ScheduledTask -TaskName '$ShutdownBackupTaskName'"
