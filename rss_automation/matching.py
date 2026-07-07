@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 import re
 from collections.abc import Sequence
 from typing import Any
 
 from rss_automation.config_files import normalize_feed_name
 from rss_automation.models import CategoryRule, MatchPattern, RssItem
+
+PHRASE_SEPARATOR_RE = re.compile(r"[\s._\[\](){}<>!?,:;\"“”‘’]+")
 
 
 def normalize_text(text: str, case_sensitive: bool) -> str:
@@ -17,14 +18,22 @@ def normalize_text(text: str, case_sensitive: bool) -> str:
     return text if case_sensitive else text.casefold()
 
 
-def text_contains_literal_phrase(text: str, phrase: str, case_sensitive: bool) -> bool:
-    """Return True when text contains the exact literal phrase, including spaces."""
+def normalize_exact_phrase_text(text: str, case_sensitive: bool) -> str:
+    """Normalize separators while preserving exact phrase tokens."""
 
-    phrase_cmp = normalize_text(phrase, case_sensitive)
+    normalized = normalize_text(text, case_sensitive)
+    return PHRASE_SEPARATOR_RE.sub(" ", normalized).strip()
+
+
+def text_contains_exact_phrase(text: str, phrase: str, case_sensitive: bool) -> bool:
+    """Return True when text contains phrase on exact token boundaries."""
+
+    phrase_cmp = normalize_exact_phrase_text(phrase, case_sensitive)
     if not phrase_cmp:
         return False
 
-    return phrase_cmp in normalize_text(text, case_sensitive)
+    text_cmp = normalize_exact_phrase_text(text, case_sensitive)
+    return f" {phrase_cmp} " in f" {text_cmp} "
 
 
 def search_texts_from_item(item: RssItem) -> tuple[str, ...]:
@@ -45,20 +54,16 @@ def normalize_search_texts(search_texts: str | RssItem | Sequence[str]) -> tuple
 
 
 def title_is_excluded(title: str, exclusions: Sequence[str], case_sensitive: bool) -> bool:
-    """Return True when a title contains any literal exclusion phrase."""
+    """Return True when a title contains any exact exclusion phrase."""
 
     return fields_are_excluded(title, exclusions, case_sensitive)
 
 
 def fields_are_excluded(search_texts: str | RssItem | Sequence[str], exclusions: Sequence[str], case_sensitive: bool) -> bool:
-    """Return True when any searchable field contains an exclusion phrase."""
+    """Return True when any searchable field contains an exact exclusion phrase."""
 
     fields = normalize_search_texts(search_texts)
-    return any(
-        text_contains_literal_phrase(field, exclusion, case_sensitive)
-        for field in fields
-        for exclusion in exclusions
-    )
+    return any(text_contains_exact_phrase(field, exclusion, case_sensitive) for field in fields for exclusion in exclusions)
 
 
 def title_matches_pattern(title: str, pattern: str, match_mode: str, case_sensitive: bool) -> bool:
@@ -70,32 +75,19 @@ def title_matches_pattern(title: str, pattern: str, match_mode: str, case_sensit
 def fields_match_pattern(
     search_texts: str | RssItem | Sequence[str], pattern: str, match_mode: str, case_sensitive: bool
 ) -> bool:
-    """Match one configured pattern against any searchable field."""
+    """Match one configured pattern exactly against any searchable field."""
 
     if not pattern:
         return False
 
     fields = normalize_search_texts(search_texts)
-    match_mode = match_mode.lower().strip()
 
-    if match_mode == "regex":
-        flags = 0 if case_sensitive else re.IGNORECASE
-        try:
-            return any(re.search(pattern, field, flags) is not None for field in fields)
-        except re.error as exc:
-            logging.warning("Invalid regex ignored: %r | %s", pattern, exc)
-            return False
+    # match_mode is kept for settings compatibility, but all supported modes now use
+    # boundary-aware exact phrase matching. Raw substring and regex matching are not used.
+    if match_mode.lower().strip() not in {"literal", "contains"}:
+        return False
 
-    pattern_cmp = normalize_text(pattern, case_sensitive)
-
-    if match_mode == "exact":
-        return any(normalize_text(field, case_sensitive) == pattern_cmp for field in fields)
-
-    # "literal" is the default. "contains" remains as a backward-compatible alias.
-    if match_mode in {"literal", "contains"}:
-        return any(text_contains_literal_phrase(field, pattern, case_sensitive) for field in fields)
-
-    return False
+    return any(text_contains_exact_phrase(field, pattern, case_sensitive) for field in fields)
 
 
 def pattern_applies_to_feed(pattern: MatchPattern, feed_name: str) -> bool:
