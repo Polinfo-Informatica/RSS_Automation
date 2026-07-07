@@ -9,7 +9,7 @@
     "exclude_file": "exclude.txt",
     "processed_file": "processed.txt",
 
-    "prefer_download_type": "magnet",
+    "prefer_download_type": "torrent",
     "match_mode": "literal",
     "case_sensitive": false,
     "skip_duplicates": true,
