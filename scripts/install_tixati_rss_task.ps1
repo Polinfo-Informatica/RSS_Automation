@@ -81,6 +81,10 @@ $shutdownTrigger = New-CimInstance `
         Subscription = $shutdownSubscription
     }
 
+if (-not $shutdownTrigger.PSObject.TypeNames.Contains("Microsoft.Management.Infrastructure.CimInstance#MSFT_TaskTrigger")) {
+    $shutdownTrigger.PSObject.TypeNames.Insert(0, "Microsoft.Management.Infrastructure.CimInstance#MSFT_TaskTrigger")
+}
+
 $backupSettings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
