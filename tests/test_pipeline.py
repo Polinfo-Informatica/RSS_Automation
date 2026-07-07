@@ -8,32 +8,26 @@ from rss_automation.models import RssItem
 from rss_automation.pipeline import choose_download, log_duplicate_summary
 
 
-def test_choose_download_uses_preference_when_both_exist() -> None:
-    item = RssItem("feed", "title", "id", "mag", "tor", "raw")
+def test_choose_download_always_uses_torrent_when_both_exist() -> None:
+    item = RssItem("feed", "title", "id", "alternate-link", "torrent-link", "raw")
 
-    magnet_selected = choose_download(item, "magnet")
-    torrent_selected = choose_download(item, "torrent")
-
-    assert magnet_selected is not None
-    assert torrent_selected is not None
-    assert magnet_selected.kind == "magnet"
-    assert torrent_selected.kind == "torrent"
-
-
-def test_choose_download_falls_back_to_available_value() -> None:
-    item = RssItem("feed", "title", "id", None, "tor", "raw")
-
-    selected = choose_download(item, "magnet")
+    selected = choose_download(item, "alternate")
 
     assert selected is not None
     assert selected.kind == "torrent"
-    assert selected.value == "tor"
+    assert selected.value == "torrent-link"
+
+
+def test_choose_download_skips_items_without_torrent_url() -> None:
+    item = RssItem("feed", "title", "id", "alternate-link", None, "raw")
+
+    assert choose_download(item, "alternate") is None
 
 
 def test_choose_download_returns_none_when_no_link_exists() -> None:
     item = RssItem("feed", "title", "id", None, None, None)
 
-    assert choose_download(item, "magnet") is None
+    assert choose_download(item, "torrent") is None
 
 
 def test_log_duplicate_summary_logs_one_line(caplog: LogCaptureFixture) -> None:
