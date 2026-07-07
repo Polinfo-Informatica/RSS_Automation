@@ -10,14 +10,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from rss_automation.archive_7z import archive_log_folder, warn_archive_failure
 from rss_automation.config_backup import backup_config_folder
 from rss_automation.config_files import read_categories, read_exclusions, read_rss_sources
 from rss_automation.duplicate_tracker import append_processed, load_processed, processed_key
 from rss_automation.logging_config import (
     log_run_footer,
     log_run_header,
-    prune_master_log,
-    prune_timestamped_logs,
     setup_logging,
     shutdown_logging,
 )
@@ -159,6 +158,7 @@ def run_once(settings_path: Path) -> int:
     paths = setup_folders(settings)
 
     max_log_executions = int(settings.get("max_log_executions", 100))
+    archive_command = str(settings.get("archive_7z_command", ""))
     run_started_at = datetime.now()
     start_perf = time.perf_counter()
     log_context = setup_logging(paths["log"], run_started_at)
@@ -170,12 +170,16 @@ def run_once(settings_path: Path) -> int:
         log_run_header(run_started_at, project_root, settings_file, log_context)
 
         if bool(settings["backup_config_on_run"]):
-            backup_config_folder(
-                paths["config"],
-                paths["config_backup"],
-                run_started_at,
-                int(settings["max_config_backups"]),
-            )
+            try:
+                backup_config_folder(
+                    paths["config"],
+                    paths["config_backup"],
+                    run_started_at,
+                    int(settings["max_config_backups"]),
+                    archive_command=archive_command,
+                )
+            except Exception as exc:
+                warn_archive_failure("config backups", exc)
 
         rss_sources = read_rss_sources(paths["config"], str(settings["rss_file"]))
         exclusions = read_exclusions(paths["config"], str(settings["exclude_file"]))
@@ -192,7 +196,8 @@ def run_once(settings_path: Path) -> int:
             return exit_code
 
         logging.info("Config folder: %s", paths["config"])
-        logging.info("Config backup folder: %s", paths["config_backup"])
+        logging.info("Config backup archive folder: %s", paths["config_backup"])
+        logging.info("Log archive folder: %s", paths["log"])
         logging.info("RSS feeds: %s", len(rss_sources))
         logging.info("Feed retry attempts: %s", settings["feed_retry_attempts"])
         logging.info("Categories: %s", ", ".join(rule.category for rule in categories))
@@ -231,5 +236,7 @@ def run_once(settings_path: Path) -> int:
     finally:
         log_run_footer(start_perf, stats, exit_code)
         shutdown_logging()
-        prune_timestamped_logs(paths["log"], max_log_executions)
-        prune_master_log(log_context.master_log_path, max_log_executions)
+        try:
+            archive_log_folder(paths["log"], max_log_executions, command=archive_command)
+        except Exception as exc:
+            warn_archive_failure("logs", exc)
