@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $RestoreScript = Join-Path $ProjectRoot "scripts\restore_signed_scripts.ps1"
@@ -38,7 +38,7 @@ function Assert-CleanWorkingTree {
     }
 
     Write-Host ""
-    Write-Host "Local non-signature changes were found $Reason:"
+    Write-Host "Local non-signature changes were found ${Reason}:"
     $status | ForEach-Object { Write-Host $_ }
     Write-Host ""
     Write-Host "The update workflow only auto-commits changes it created itself by running Ruff format."
@@ -104,3 +104,4 @@ finally {
 
 Write-Host ""
 Write-Host "Update, formatting, checks, runtime, and local script signing completed successfully."
+
