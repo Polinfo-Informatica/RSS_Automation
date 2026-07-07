@@ -127,6 +127,20 @@ def resolve_path_value(
     return str(path.resolve())
 
 
+def windows_download_runtime_paths(downloads_folder: Path) -> dict[str, str]:
+    """Return the non-configurable Windows runtime folder structure."""
+
+    root_folder = (downloads_folder / "RSS_Automation").resolve()
+    return {
+        "root_folder": str(root_folder),
+        "config_folder": str(root_folder / "RSS_Config"),
+        "magnet_output_folder": str(root_folder / "RSS_Magnet"),
+        "torrent_output_folder": str(root_folder / "RSS_Torrent"),
+        "log_folder": str(root_folder / "Logs"),
+        "config_backup_folder": str(root_folder / "RSS_Config_Backups"),
+    }
+
+
 def resolve_configured_paths(settings: dict[str, Any], project_root: Path) -> dict[str, Any]:
     """Resolve all path settings to absolute path strings."""
 
@@ -136,6 +150,11 @@ def resolve_configured_paths(settings: dict[str, Any], project_root: Path) -> di
 
     resolved["project_root"] = str(project_root)
     resolved["downloads_folder"] = str(downloads_folder)
+
+    if sys.platform == "win32":
+        resolved.update(windows_download_runtime_paths(downloads_folder))
+        return resolved
+
     resolved["root_folder"] = resolve_path_value(str(resolved["root_folder"]), project_root, downloads_folder)
 
     for key in PATH_SETTING_KEYS - {"root_folder"}:
