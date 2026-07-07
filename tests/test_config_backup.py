@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
-from rss_automation.config_backup import backup_config_folder, prune_config_backups
+from rss_automation.config_backup import backup_config_folder
 
 
-def test_backup_config_folder_copies_files_and_prunes_old_backups(tmp_path: Path) -> None:
+def test_backup_config_folder_archives_snapshot_and_removes_legacy_backups(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
     config_folder = tmp_path / "RSS_Config"
     backup_root = tmp_path / "RSS_Config_Backups"
     config_folder.mkdir()
@@ -18,32 +20,58 @@ def test_backup_config_folder_copies_files_and_prunes_old_backups(tmp_path: Path
     old_backup.mkdir(parents=True)
     (old_backup / "rss.txt").write_text("old\n", encoding="utf-8")
 
-    backup_path = backup_config_folder(
+    archived_batches: list[tuple[Path, Path, list[str], str]] = []
+
+    def fake_update_7z_archive(
+        archive_path: Path,
+        source_root: Path,
+        relative_paths: list[Path],
+        command: str = "",
+    ) -> None:
+        archive_path.write_text("archive\n", encoding="utf-8")
+        archived_batches.append(
+            (
+                archive_path,
+                source_root,
+                sorted(str(path).replace("\\", "/") for path in relative_paths),
+                command,
+            )
+        )
+
+    pruned: list[tuple[Path, int, str]] = []
+
+    def fake_prune_config_backup_archive(archive_path: Path, max_backups: int, command: str = "") -> None:
+        pruned.append((archive_path, max_backups, command))
+
+    monkeypatch.setattr("rss_automation.config_backup.update_7z_archive", fake_update_7z_archive)
+    monkeypatch.setattr("rss_automation.config_backup.prune_config_backup_archive", fake_prune_config_backup_archive)
+
+    archive_path = backup_config_folder(
         config_folder,
         backup_root,
         datetime(2026, 7, 7, 4, 30, 0),
         max_backups=1,
+        archive_command="7z",
     )
 
-    assert backup_path is not None
-    assert backup_path.name == "RSS_Config_2026-07-07_04-30-00"
-    assert (backup_path / "rss.txt").read_text(encoding="utf-8") == "feed\n"
-    assert (backup_path / "anime.txt").read_text(encoding="utf-8") == "Grand Blue\n"
+    assert archive_path == backup_root / "RSS_Config_Backups.7z"
+    assert archive_path.is_file()
     assert not old_backup.exists()
+    assert archived_batches[0][2] == [
+        "RSS_Config_2026-07-07_04-30-00/anime.txt",
+        "RSS_Config_2026-07-07_04-30-00/rss.txt",
+    ]
+    assert archived_batches[0][3] == "7z"
+    assert archived_batches[1][2] == ["RSS_Config_2026-01-01_00-00-00/rss.txt"]
+    assert pruned == [(backup_root / "RSS_Config_Backups.7z", 1, "7z")]
 
 
-def test_prune_config_backups_keeps_newest_by_mtime(tmp_path: Path) -> None:
-    backup_root = tmp_path / "RSS_Config_Backups"
-    backup_root.mkdir()
-    now = datetime.now().timestamp()
+def test_backup_config_folder_returns_none_when_config_missing(tmp_path: Path) -> None:
+    archive_path = backup_config_folder(
+        tmp_path / "missing",
+        tmp_path / "RSS_Config_Backups",
+        datetime(2026, 7, 7, 4, 30, 0),
+        max_backups=1,
+    )
 
-    for index in range(3):
-        backup = backup_root / f"RSS_Config_2026-01-0{index + 1}_00-00-00"
-        backup.mkdir()
-        timestamp = now + timedelta(minutes=index).total_seconds()
-        os.utime(backup, (timestamp, timestamp))
-
-    prune_config_backups(backup_root, max_backups=2)
-
-    remaining = sorted(path.name for path in backup_root.iterdir())
-    assert remaining == ["RSS_Config_2026-01-02_00-00-00", "RSS_Config_2026-01-03_00-00-00"]
+    assert archive_path is None
