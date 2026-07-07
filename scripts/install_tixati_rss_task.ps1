@@ -1,9 +1,9 @@
-$ErrorActionPreference = "Stop"
-
 param(
     [string] $TaskName = "RSS Automation - Tixati",
     [int] $HourlyInterval = 1
 )
+
+$ErrorActionPreference = "Stop"
 
 function Test-IsAdministrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
