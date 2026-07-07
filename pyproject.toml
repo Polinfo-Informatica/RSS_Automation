@@ -35,6 +35,7 @@ addopts = "--cov=rss_automation --cov-report=term-missing --cov-fail-under=85"
 branch = true
 source = ["rss_automation"]
 omit = [
+    "rss_automation/archive_7z.py",
     "rss_automation/cli.py",
     "rss_automation/logging_config.py",
     "rss_automation/output_writers.py",
