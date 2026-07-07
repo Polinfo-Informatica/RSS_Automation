@@ -14,7 +14,6 @@ from rss_automation.archive_7z import (
     config_snapshot_names,
     prune_config_backup_archive,
     relative_file_paths,
-    unique_config_snapshot_name,
     update_7z_archive,
 )
 
@@ -24,10 +23,27 @@ def config_backup_exists_for_date(
 ) -> bool:
     """Return whether a config backup snapshot already exists for the run date."""
 
+    snapshot_names = config_snapshot_names(archive_path, backup_root, archive_command)
+    return config_backup_exists_for_date_in_names(snapshot_names, run_started_at)
+
+
+def config_backup_exists_for_date_in_names(snapshot_names: set[str], run_started_at: datetime) -> bool:
+    """Return whether snapshot names contain a backup for the run date."""
+
     date_prefix = run_started_at.strftime("RSS_Config_%Y-%m-%d_")
-    return any(
-        name.startswith(date_prefix) for name in config_snapshot_names(archive_path, backup_root, archive_command)
-    )
+    return any(name.startswith(date_prefix) for name in snapshot_names)
+
+
+def unique_config_snapshot_name_from_names(existing_names: set[str], desired_name: str) -> str:
+    """Return a backup snapshot name that does not exist in existing_names."""
+
+    if desired_name not in existing_names:
+        return desired_name
+
+    suffix = 1
+    while f"{desired_name}_{suffix}" in existing_names:
+        suffix += 1
+    return f"{desired_name}_{suffix}"
 
 
 def backup_config_folder(
@@ -49,21 +65,16 @@ def backup_config_folder(
     archive_path = backup_root / CONFIG_BACKUP_ARCHIVE_NAME
 
     archive_legacy_backup_directories(backup_root, archive_path, command=archive_command)
+    existing_names = config_snapshot_names(archive_path, backup_root, archive_command)
 
-    if (
-        once_per_day
-        and not force
-        and config_backup_exists_for_date(archive_path, backup_root, run_started_at, archive_command)
-    ):
+    if once_per_day and not force and config_backup_exists_for_date_in_names(existing_names, run_started_at):
         logging.info("Config backup skipped: a backup already exists for today in %s", archive_path)
         prune_config_backup_archive(archive_path, max_backups, command=archive_command)
         return archive_path if archive_path.exists() else None
 
-    snapshot_name = unique_config_snapshot_name(
-        archive_path,
-        backup_root,
+    snapshot_name = unique_config_snapshot_name_from_names(
+        existing_names,
         run_started_at.strftime("RSS_Config_%Y-%m-%d_%H-%M-%S"),
-        command=archive_command,
     )
 
     with tempfile.TemporaryDirectory(prefix="rss_config_backup_") as temp_name:
