@@ -23,6 +23,7 @@
 
     "write_magnet_format": "title_and_magnet",
     "backup_config_on_run": true,
+    "archive_7z_command": "",
     "max_config_backups": 50,
     "max_log_executions": 100,
     "dry_run": false
