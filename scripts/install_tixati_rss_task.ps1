@@ -1,5 +1,6 @@
 param(
     [string] $TaskName = "RSS Automation - Tixati",
+    [string] $ShutdownBackupTaskName = "RSS Automation - Config Backup Shutdown",
     [int] $HourlyInterval = 1
 )
 
@@ -17,9 +18,14 @@ if (-not (Test-IsAdministrator)) {
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $RunnerScript = Join-Path $ProjectRoot "scripts\run_rss_if_tixati_open.ps1"
+$BackupRunnerScript = Join-Path $ProjectRoot "scripts\run_config_backup.ps1"
 
 if (-not (Test-Path $RunnerScript)) {
     throw "Runtime wrapper script not found: $RunnerScript"
+}
+
+if (-not (Test-Path $BackupRunnerScript)) {
+    throw "Config backup wrapper script not found: $BackupRunnerScript"
 }
 
 $escapedRunner = $RunnerScript.Replace('"', '\"')
@@ -59,9 +65,45 @@ Register-ScheduledTask `
     -Description $description `
     -Force | Out-Null
 
+$escapedBackupRunner = $BackupRunnerScript.Replace('"', '\"')
+$backupAction = New-ScheduledTaskAction `
+    -Execute "powershell.exe" `
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$escapedBackupRunner`" -Force" `
+    -WorkingDirectory $ProjectRoot
+
+$shutdownSubscription = "<QueryList><Query Id='0' Path='System'><Select Path='System'>*[System[Provider[@Name='User32'] and EventID=1074]]</Select></Query></QueryList>"
+$shutdownTrigger = New-CimInstance `
+    -ClientOnly `
+    -Namespace "root/Microsoft/Windows/TaskScheduler" `
+    -ClassName "MSFT_TaskEventTrigger" `
+    -Property @{
+        Enabled = $true
+        Subscription = $shutdownSubscription
+    }
+
+$backupSettings = New-ScheduledTaskSettingsSet `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 5) `
+    -MultipleInstances IgnoreNew `
+    -StartWhenAvailable
+
+Register-ScheduledTask `
+    -TaskName $ShutdownBackupTaskName `
+    -Action $backupAction `
+    -Trigger $shutdownTrigger `
+    -Principal $principal `
+    -Settings $backupSettings `
+    -Description "Creates a forced RSS config backup when Windows shutdown or restart is initiated." `
+    -Force | Out-Null
+
 Write-Host "Scheduled task installed or updated: $TaskName"
 Write-Host "User: $currentUser"
 Write-Host "Run level: Highest available privileges"
 Write-Host "Triggers: Windows startup; every $HourlyInterval hour(s)"
 Write-Host "Condition: wrapper exits unless Tixati is running"
 Write-Host "Manual test command: Start-ScheduledTask -TaskName '$TaskName'"
+Write-Host ""
+Write-Host "Shutdown backup task installed or updated: $ShutdownBackupTaskName"
+Write-Host "Trigger: Windows shutdown/restart initiated event"
+Write-Host "Manual test command: Start-ScheduledTask -TaskName '$ShutdownBackupTaskName'"
