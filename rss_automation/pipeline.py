@@ -10,7 +10,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from rss_automation.config_files import read_categories, read_exclusions, read_rss_sources
+from rss_automation.config_backup import backup_config_folder
+from rss_automation.config_files import RssSource, read_categories, read_exclusions, read_rss_sources
 from rss_automation.duplicate_tracker import append_processed, load_processed, processed_key
 from rss_automation.logging_config import (
     log_run_footer,
@@ -44,6 +45,50 @@ def choose_download(item: RssItem, preference: str = "torrent") -> SelectedDownl
         return SelectedDownload("magnet", item.magnet)
 
     return None
+
+
+def read_feed_with_retries(source: RssSource, settings: dict[str, Any]) -> list[RssItem]:
+    """Read one RSS feed with configurable retry attempts."""
+
+    attempts = int(settings["feed_retry_attempts"])
+    retry_delay_seconds = int(settings["feed_retry_delay_seconds"])
+    timeout = int(settings["download_timeout_seconds"])
+    user_agent = str(settings["request_user_agent"])
+
+    last_exc: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            if attempt == 1:
+                logging.info("Reading RSS feed [%s]: %s", source.name, redact_url(source.url))
+            else:
+                logging.info(
+                    "Retrying RSS feed [%s], attempt %s of %s: %s",
+                    source.name,
+                    attempt,
+                    attempts,
+                    redact_url(source.url),
+                )
+
+            return parse_feed(source.url, timeout, user_agent, source.name)
+        except Exception as exc:
+            last_exc = exc
+            if attempt >= attempts:
+                break
+
+            logging.warning(
+                "RSS feed read failed [%s], attempt %s of %s | %s: %s",
+                source.name,
+                attempt,
+                attempts,
+                type(exc).__name__,
+                redact_text(str(exc)),
+            )
+
+            if retry_delay_seconds > 0:
+                time.sleep(retry_delay_seconds)
+
+    assert last_exc is not None
+    raise last_exc
 
 
 def log_duplicate_summary(duplicates_by_category: Counter[str]) -> None:
@@ -135,6 +180,14 @@ def run_once(settings_path: Path) -> int:
     try:
         log_run_header(run_started_at, project_root, settings_file, log_context)
 
+        if bool(settings["backup_config_on_run"]):
+            backup_config_folder(
+                paths["config"],
+                paths["config_backup"],
+                run_started_at,
+                int(settings["max_config_backups"]),
+            )
+
         rss_sources = read_rss_sources(paths["config"], str(settings["rss_file"]))
         exclusions = read_exclusions(paths["config"], str(settings["exclude_file"]))
         categories = read_categories(paths["config"])
@@ -150,7 +203,9 @@ def run_once(settings_path: Path) -> int:
             return exit_code
 
         logging.info("Config folder: %s", paths["config"])
+        logging.info("Config backup folder: %s", paths["config_backup"])
         logging.info("RSS feeds: %s", len(rss_sources))
+        logging.info("Feed retry attempts: %s", settings["feed_retry_attempts"])
         logging.info("Categories: %s", ", ".join(rule.category for rule in categories))
         logging.info("Exclusions: %s", len(exclusions))
         logging.info("Download preference: %s", settings["prefer_download_type"])
@@ -160,20 +215,14 @@ def run_once(settings_path: Path) -> int:
         failed_feeds = 0
         for source in rss_sources:
             try:
-                all_items.extend(
-                    parse_feed(
-                        source.url,
-                        int(settings["download_timeout_seconds"]),
-                        str(settings["request_user_agent"]),
-                        source.name,
-                    )
-                )
+                all_items.extend(read_feed_with_retries(source, settings))
             except Exception as exc:
                 failed_feeds += 1
                 logging.error(
-                    "Failed to read feed [%s] %s | %s: %s",
+                    "Failed to read feed [%s] %s after %s attempt(s) | %s: %s",
                     source.name,
                     redact_url(source.url),
+                    settings["feed_retry_attempts"],
                     type(exc).__name__,
                     redact_text(str(exc)),
                 )
